@@ -1,0 +1,336 @@
+FUNCTION ADC2Phys : VOID
+    TITLE = 'Get physical signal from ADC'
+    VERSION: '1.1'
+    AUTHOR: RoVRy
+    NAME: ADC2Phys
+    FAMILY: Convert
+
+CONST
+
+    ST_BDvR := 16#00;
+    ST_BPrR := 16#28;
+    ST_Siml := 16#60;
+    ST_UDvR := 16#68;
+    ST_UPrR := 16#78;
+    ST_Good := 16#80;
+    ST_MntR := 16#A4;
+    ST_Undf := 16#FF;
+    
+    Unit_mV := 1243;
+    Unit_V  := 1240;
+    Unit_mA := 1211;
+    Unit_Om := 1281;
+
+END_CONST
+
+VAR_INPUT
+    
+    In      : WORD := 16#0000;                              // IW value input
+    Mode    : DWORD := 16#00000000;                         // Mode signal input
+    UnitsEn { S7_visible := 'false' } : BOOL := TRUE;       // 0 = Return 0 for string unit use, 1 = Return PCS unit number
+    Precise { S7_visible := 'false' } : REAL := 0.01;       // 0 = Don't round the output value, Others = round the output (0.001 = up to 3rd digit)
+
+END_VAR
+
+VAR_OUTPUT
+
+    Out     : STRUCT
+        Value   : REAL := 0.0;                              // Value
+        ST      : BYTE := ST_Undf;                          // Signal status
+    END_STRUCT;
+    
+    OutUnit : INT;                                          // PCS 7 unit number
+    
+END_VAR
+
+VAR_TEMP
+
+    tMode   : DWORD;
+    tStMode AT tMode : STRUCT
+        Head    : WORD;
+        AB      : WORD;
+    END_STRUCT;
+    
+    tModeAB : INT;
+    tUnit   : INT;
+
+    tIn     : REAL;
+    tOut    : REAL;
+
+    tScale  : STRUCT
+        Hi  : REAL;
+        Low : REAL;
+    END_STRUCT;
+    
+    tADC    : STRUCT
+        POverL  : REAL;
+        Hi      : REAL;
+        Low     : REAL;
+        NOverL  : REAL;
+    END_STRUCT;
+
+END_VAR
+
+BEGIN
+
+    tMode := Mode;
+    tModeAB := WORD_TO_INT(tStMode.AB);
+
+    CASE tModeAB OF
+        257 :                           // 16#0101
+            tScale.Hi := 80.0;
+            tScale.Low := -80.0;
+            tUnit := Unit_mV;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := -27648.0;
+            tADC.NOverL := -32512.0;
+        258 :                           // 16#0102
+            tScale.Hi := 250.0;
+            tScale.Low := -250.0;
+            tUnit := Unit_mV;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := -27648.0;
+            tADC.NOverL := -32512.0;
+        259 :                           // 16#0103
+            tScale.Hi := 500.0;
+            tScale.Low := -500.0;
+            tUnit := Unit_mV;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := -27648.0;
+            tADC.NOverL := -32512.0;
+        260 :                           // 16#0104
+            tScale.Hi := 1.0;
+            tScale.Low := -1.0;
+            tUnit := Unit_V;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := -27648.0;
+            tADC.NOverL := -32512.0;
+        261 :                           // 16#0105
+            tScale.Hi := 2.5;
+            tScale.Low := -2.5;
+            tUnit := Unit_V;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := -27648.0;
+            tADC.NOverL := -32512.0;
+        262 :                           // 16#0106
+            tScale.Hi := 5.0;
+            tScale.Low := -5.0;
+            tUnit := Unit_V;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := -27648.0;
+            tADC.NOverL := -32512.0;
+        263 :                           // 16#0107
+            tScale.Hi := 5.0;
+            tScale.Low := 1.0;
+            tUnit := Unit_V;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := 0.0;
+            tADC.NOverL := -4864.0;
+        264 :                           // 16#0108
+            tScale.Hi := 10.0;
+            tScale.Low := 0.0;
+            tUnit := Unit_V;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := 0.0;
+            tADC.NOverL := -4864.0;
+        265 :                           // 16#0109
+            tScale.Hi := 10.0;
+            tScale.Low := -10.0;
+            tUnit := Unit_V;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := -27648.0;
+            tADC.NOverL := -32512.0;
+        266 :                           // 16#010A
+            tScale.Hi := 25.0;
+            tScale.Low := -25.0;
+            tUnit := Unit_mV;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := -27648.0;
+            tADC.NOverL := -32512.0;
+        267 :                           // 16#010B
+            tScale.Hi := 50.0;
+            tScale.Low := -50.0;
+            tUnit := Unit_mV;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := -27648.0;
+            tADC.NOverL := -32512.0;
+        268 :                           // 16#010C
+            tScale.Hi := 100.0;
+            tScale.Low := -100.0;
+            tUnit := Unit_mV;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := -27648.0;
+            tADC.NOverL := -32512.0;
+        512 :                           // 16#0200
+            tScale.Hi := 3.2;
+            tScale.Low := -3.2;
+            tUnit := Unit_mA;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := -27648.0;
+            tADC.NOverL := -32512.0;
+        513 :                           // 16#0201
+            tScale.Hi := 10.0;
+            tScale.Low := -10.0;
+            tUnit := Unit_mA;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := -27648.0;
+            tADC.NOverL := -32512.0;
+        514, 770 :                      // 16#0202, 16#0302
+            tScale.Hi := 20.0;
+            tScale.Low := 0.0;
+            tUnit := Unit_mA;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := 0.0;
+            tADC.NOverL := -4864.0;
+        515, 771, 1804 :                // 16#0203, 16#0303, 16#070C
+            tScale.Hi := 20.0;
+            tScale.Low := 4.0;
+            tUnit := Unit_mA;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := 0.0;
+            tADC.NOverL := -4864.0;
+        516, 772 :                      // 16#0204, 16#0304
+            tScale.Hi := 20.0;
+            tScale.Low := -20.0;
+            tUnit := Unit_mA;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := -27648.0;
+            tADC.NOverL := -32512.0;
+        517 :                           // 16#0205
+            tScale.Hi := 5.0;
+            tScale.Low := -5.0;
+            tUnit := Unit_mA;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := -27648.0;
+            tADC.NOverL := -32512.0;
+
+        1024, 1280, 1536 :              // 16#0400, 16#0500, 16#0600
+            tScale.Hi := 48.0;
+            tScale.Low := 0.0;
+            tUnit := Unit_Om;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := 0.0;
+            tADC.NOverL := -1.0;
+        1026, 1282, 1538 :              // 16#0402, 16#0502, 16#0602
+            tScale.Hi := 150.0;
+            tScale.Low := 0.0;
+            tUnit := Unit_Om;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := 0.0;
+            tADC.NOverL := -1.0;
+        1028, 1284, 1540 :              // 16#0404, 16#0504, 16#0604
+            tScale.Hi := 300.0;
+            tScale.Low := 0.0;
+            tUnit := Unit_Om;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := 0.0;
+            tADC.NOverL := -1.0;
+        1030, 1286, 1542 :              // 16#0406, 16#0506, 16#0606
+            tScale.Hi := 600.0;
+            tScale.Low := 0.0;
+            tUnit := Unit_Om;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := 0.0;
+            tADC.NOverL := -1.0;
+        1031, 1287, 1543 :              // 16#0407, 16#0507, 16#0607
+            tScale.Hi := 3000.0;
+            tScale.Low := 0.0;
+            tUnit := Unit_Om;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := 0.0;
+            tADC.NOverL := -1.0;
+        1032, 1288, 1544 :              // 16#0408, 16#0508, 16#0608
+            tScale.Hi := 6000.0;
+            tScale.Low := 0.0;
+            tUnit := Unit_Om;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := 0.0;
+            tADC.NOverL := -1.0;
+        1038, 1294, 1550 :              // 16#040E, 16#050E, 16#060E
+            tScale.Hi := 1000.0;
+            tScale.Low := 0.0;
+            tUnit := Unit_Om;
+            tADC.POverL := 32511.0;
+            tADC.Hi := 27648.0;
+            tADC.Low := 0.0;
+            tADC.NOverL := -1.0;
+
+         2050 :                         // 16#0802
+            tScale.Hi := 1.0;           // Не имеет значения
+            tScale.Low := 0.0;          // Не имеет значения
+            tUnit := Unit_Om;
+            tADC.POverL := 10000.0;
+            tADC.Hi := 8500.0;
+            tADC.Low := -2000.0;
+            tADC.NOverL := -2430.0;
+    ELSE :
+        tScale.Hi := 1.0;
+        tScale.Low := 0.0;
+        tUnit := 0;
+        tADC.POverL := 32511.0;
+        tADC.Hi := 27648.0;
+        tADC.Low := 0.0;
+        tADC.NOverL := -1.0;
+    END_CASE;
+    
+    IF NOT UnitsEn THEN
+        tUnit := 0;
+    END_IF;
+
+    tIn := INT_TO_REAL(WORD_TO_INT(In));
+
+
+    IF tModeAB <> 2050 THEN                                                                         // Если режимы тока, напряжения и сопротивления
+        tOut := (tIn - tADC.Low) * (tScale.Hi - tScale.Low) / (tADC.Hi - tADC.Low) + tScale.Low;    // Просто линейно пересчитываем с учётом шкал
+    ELSE                                                                                            // Если на модуле режим 16#0802 = Pt100 Standard (0.00385)
+        tIn := tIn / 10.0;                                                                          // Конвертируем отсчёты АЦП модуля RTD в температуру
+        IF tIn >= 0 THEN
+            tOut := 100.0 * (1 + 3.9083e-3 * tIn - 5.775e-7 * tIn * tIn);                           // Расчитываем сопротивление по формуле Rt = R0(1+At+Bt2) для температур от 0° до 850°C
+        ELSE
+            tOut := 100.0 * (1 + 3.9083e-3 * tIn - 5.775e-7 * tIn * tIn - 4.183e-12 * (tIn - 100.0) * tIn * tIn * tIn);    // Расчитываем сопротивление по формуле Rt = R0(1+At+Bt2+C(t-100)t3) для температур от -200° до 0°C
+        END_IF;
+    END_IF;
+
+    IF Precise <> 0.0 THEN
+        tOut := DINT_TO_REAL(ROUND(tOut / Precise)) * Precise;
+    END_IF;
+
+    Out.Value := tOut;
+
+    IF (tIn < tADC.NOverL) OR (tIn > tADC.POverL) THEN
+        Out.ST := ST_BDvR;
+    ELSIF (tIn >= tADC.NOverL) AND (tIn < tADC.Low) THEN
+        Out.ST := ST_UPrR;
+    ELSIF (tIn >= tADC.Low) AND (tIn <= tADC.Hi) THEN
+        Out.ST := ST_Good;
+    ELSIF (tIn > tADC.Hi) AND (tIn <= tADC.POverL) THEN
+        Out.ST := ST_UPrR;
+    END_IF;
+
+    OutUnit := tUnit;
+    
+END_FUNCTION
