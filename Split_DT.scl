@@ -1,0 +1,38 @@
+FUNCTION SplitDT: VOID {
+                        S7_blockview := 'big';
+                        Scl_OverwriteBlocks := 'y';
+                        Scl_CreateObjectCode := 'y';
+                        Scl_OptimizeObjectCode := 'y';
+                        Scl_MonitorArrayLimits := 'n';
+                        Scl_CreateDebugInfo := 'n';
+                        Scl_S7ServerActive := 'n';
+                        GenerateReferenceData := 'y';
+                        SetMaximumStringLength := '254'
+                       }
+TITLE = 'Split DATE_AND_TIME to the two separate DWORDs'
+VERSION: '0.1'
+AUTHOR: RoVRy
+NAME: SplitDT
+FAMILY: SGOK
+KNOW_HOW_PROTECT
+
+VAR_INPUT            
+
+    DT_In           : DATE_AND_TIME;        // Date And Time Input
+    dwDT AT DT_In   : ARRAY[0..1] OF DWORD;
+
+END_VAR
+
+VAR_OUTPUT            
+
+    DWh_Out : DWORD;                        // High 4 bytes from DT
+    DWl_Out : DWORD;                        // Low 4 bytes from DT
+
+END_VAR
+
+BEGIN
+
+    DWh_Out := dwDT[0];
+    DWl_Out := dwDT[1];
+
+END_FUNCTION
