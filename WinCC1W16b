@@ -1,0 +1,228 @@
+FUNCTION_BLOCK WinCC1W16b
+    { S7_m_c := 'true' }
+TITLE = 'Get 16 bits form WinCC as 1 WORD'
+VERSION: '0.1'
+AUTHOR: RoVRy
+NAME: WinCC1W16b
+FAMILY: SGOK
+
+KNOW_HOW_PROTECT
+
+//============================================================================================================================================================
+// Блок констант статусов сигналов
+//============================================================================================================================================================
+CONST
+
+    ST_BDR  := 16#00;
+    ST_BPR  := 16#28;
+    ST_Sim  := 16#60;
+    ST_UDR  := 16#68;
+    ST_UPR  := 16#78;
+    ST_Good := 16#80;
+    ST_Mnt  := 16#A4;
+    ST_Unk  := 16#FF;    
+
+END_CONST
+
+//============================================================================================================================================================
+// Входные параметры
+//============================================================================================================================================================
+VAR_INPUT
+
+    In { S7_m_c := 'true';
+         S7_dynamic := 'true' }         : WORD := W#16#0000;                    // Input value from WinCC
+
+    Status { S7_visible := 'false';
+             S7_string_0 := 'Bad DR';
+             S7_string_1 := 'Bad PR';
+             S7_string_2 := 'Simul.';
+             S7_string_3 := 'Unk DR';
+             S7_string_4 := 'Unk PR';
+             S7_string_5 := 'Good';
+             S7_string_6 := 'Maint.';
+             S7_string_7 := 'Unknown' } : INT := 5;                             // 0 = Bad device related, 1 = Bad process related, 2 = Simulation, 3 = Unknown device related, 4 = Unknown process related, 5 = Good, 6 = Maintenance required, 7 = Unknown
+
+    SimOn { S7_dynamic := 'true';
+            S7_visible := 'false' }     : STRUCT
+        Value   : BOOL := FALSE;                                                // Value
+        ST      : BYTE := B#16#80;                                              // Status signal
+    END_STRUCT;                                                                 // 1=Simulation active
+
+    SimIn { S7_dynamic := 'true';
+            S7_visible := 'false' }     : WORD := W#16#0000;                    // Simulation value
+
+END_VAR
+
+// ============================================================================================================================================================
+// Выходные параметры
+// ============================================================================================================================================================
+VAR_OUTPUT
+
+    Bit0  { S7_dynamic := 'true' }       : STRUCT
+        Value   : BOOL := FALSE;                                                // Value
+        ST      : BYTE := ST_Unk;                                               // Status signal
+    END_STRUCT;                                                                 // Bit 0 value
+
+    Bit1  { S7_dynamic := 'true' }       : STRUCT
+        Value   : BOOL := FALSE;                                                // Value
+        ST      : BYTE := ST_Unk;                                               // Status signal
+    END_STRUCT;                                                                 // Bit 1 value
+
+    Bit2  { S7_dynamic := 'true' }       : STRUCT
+        Value   : BOOL := FALSE;                                                // Value
+        ST      : BYTE := ST_Unk;                                               // Status signal
+    END_STRUCT;                                                                 // Bit 2 value
+
+    Bit3  { S7_dynamic := 'true' }       : STRUCT
+        Value   : BOOL := FALSE;                                                // Value
+        ST      : BYTE := ST_Unk;                                               // Status signal
+    END_STRUCT;                                                                 // Bit 3 value
+
+    Bit4  { S7_dynamic := 'true' }       : STRUCT
+        Value   : BOOL := FALSE;                                                // Value
+        ST      : BYTE := ST_Unk;                                               // Status signal
+    END_STRUCT;                                                                 // Bit 4 value
+
+    Bit5  { S7_dynamic := 'true' }       : STRUCT
+        Value   : BOOL := FALSE;                                                // Value
+        ST      : BYTE := ST_Unk;                                               // Status signal
+    END_STRUCT;                                                                 // Bit 5 value
+
+    Bit6  { S7_dynamic := 'true' }       : STRUCT
+        Value   : BOOL := FALSE;                                                // Value
+        ST      : BYTE := ST_Unk;                                               // Status signal
+    END_STRUCT;                                                                 // Bit 6 value
+
+    Bit7  { S7_dynamic := 'true' }       : STRUCT
+        Value   : BOOL := FALSE;                                                // Value
+        ST      : BYTE := ST_Unk;                                               // Status signal
+    END_STRUCT;                                                                 // Bit 7 value
+
+    Bit8  { S7_dynamic := 'true' }       : STRUCT
+        Value   : BOOL := FALSE;                                                // Value
+        ST      : BYTE := ST_Unk;                                               // Status signal
+    END_STRUCT;                                                                 // Bit 8 value
+
+    Bit9  { S7_dynamic := 'true' }       : STRUCT
+        Value   : BOOL := FALSE;                                                // Value
+        ST      : BYTE := ST_Unk;                                               // Status signal
+    END_STRUCT;                                                                 // Bit 9 value
+
+    Bit10 { S7_dynamic := 'true' }       : STRUCT
+        Value   : BOOL := FALSE;                                                // Value
+        ST      : BYTE := ST_Unk;                                               // Status signal
+    END_STRUCT;                                                                 // Bit 10 value
+
+    Bit11 { S7_dynamic := 'true' }       : STRUCT
+        Value   : BOOL := FALSE;                                                // Value
+        ST      : BYTE := ST_Unk;                                               // Status signal
+    END_STRUCT;                                                                 // Bit 11 value
+
+    Bit12 { S7_dynamic := 'true' }       : STRUCT
+        Value   : BOOL := FALSE;                                                // Value
+        ST      : BYTE := ST_Unk;                                               // Status signal
+    END_STRUCT;                                                                 // Bit 12 value
+
+    Bit13 { S7_dynamic := 'true' }       : STRUCT
+        Value   : BOOL := FALSE;                                                // Value
+        ST      : BYTE := ST_Unk;                                               // Status signal
+    END_STRUCT;                                                                 // Bit 13 value
+
+    Bit14 { S7_dynamic := 'true' }       : STRUCT
+        Value   : BOOL := FALSE;                                                // Value
+        ST      : BYTE := ST_Unk;                                               // Status signal
+    END_STRUCT;                                                                 // Bit 14 value
+
+    Bit15 { S7_dynamic := 'true' }       : STRUCT
+        Value   : BOOL := FALSE;                                                // Value
+        ST      : BYTE := ST_Unk;                                               // Status signal
+    END_STRUCT;                                                                 // Bit 15 value
+
+END_VAR
+
+// ============================================================================================================================================================
+// Временные параметры
+// ============================================================================================================================================================
+VAR_TEMP
+
+    twIn        : WORD;
+    tbIn AT twIn : ARRAY[0..15] OF BOOL;
+    tST         : BYTE;
+
+END_VAR
+
+// ============================================================================================================================================================
+// Код
+// ============================================================================================================================================================
+BEGIN
+
+    twIn := In;
+
+// Выбираем статус в соответствии с настройкой
+    CASE Status OF
+        0 : tST := ST_BDR;
+        1 : tST := ST_BPR;
+        2 : tST := ST_Sim;
+        3 : tST := ST_UDR;
+        4 : tST := ST_UPR;
+        5 : tST := ST_Good;
+        6 : tST := ST_Mnt;
+        7 : tST := ST_Unk;
+    END_CASE;
+
+    IF SimOn.Value THEN
+        twIn := SimIn;
+        tST := ST_Sim;
+    END_IF;
+
+// Копируем биты на выход, меняя их порядок, потому что WinCC - LSB, а S7 - MSB
+
+    Bit0.Value := tbIn[8];
+    Bit0.ST := tST;
+
+    Bit1.Value := tbIn[9];
+    Bit1.ST := tST;
+
+    Bit2.Value := tbIn[10];
+    Bit2.ST := tST;
+
+    Bit3.Value := tbIn[11];
+    Bit3.ST := tST;
+
+    Bit4.Value := tbIn[12];
+    Bit4.ST := tST;
+
+    Bit5.Value := tbIn[13];
+    Bit5.ST := tST;
+
+    Bit6.Value := tbIn[14];
+    Bit6.ST := tST;
+
+    Bit7.Value := tbIn[15];
+    Bit7.ST := tST;
+
+    Bit8.Value := tbIn[0];
+    Bit8.ST := tST;
+
+    Bit9.Value := tbIn[1];
+    Bit9.ST := tST;
+
+    Bit10.Value := tbIn[2];
+    Bit10.ST := tST;
+
+    Bit11.Value := tbIn[3];
+    Bit11.ST := tST;
+
+    Bit12.Value := tbIn[4];
+    Bit12.ST := tST;
+
+    Bit13.Value := tbIn[5];
+    Bit13.ST := tST;
+
+    Bit14.Value := tbIn[6];
+    Bit14.ST := tST;
+
+    Bit15.Value := tbIn[7];
+    Bit15.ST := tST;
+
+END_FUNCTION_BLOCK
