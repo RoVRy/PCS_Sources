@@ -1,0 +1,106 @@
+FUNCTION_BLOCK WinCC32b
+{ S7_m_c := 'true' }
+TITLE   = 'WinCC Interface for 32 Bit'
+NAME    : 'WinCC32b'
+FAMILY  : 'SGOK'
+AUTHOR  : 'RoVRy'
+VERSION : '0.2'
+
+KNOW_HOW_PROTECT
+
+
+VAR_INPUT
+    In0  { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 0
+    In1  { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 1
+    In2  { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 2
+    In3  { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 3
+    In4  { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 4
+    In5  { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 5
+    In6  { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 6
+    In7  { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 7
+    In8  { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 8
+    In9  { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 9
+    In10 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 10
+    In11 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 11
+    In12 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 12
+    In13 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 13
+    In14 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 14
+    In15 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 15
+    In16 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 16
+    In17 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 17
+    In18 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 18
+    In19 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 19
+    In20 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 20
+    In21 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 21
+    In22 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 22
+    In23 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 23
+    In24 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 24
+    In25 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 25
+    In26 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 26
+    In27 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 27
+    In28 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 28
+    In29 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 29
+    In30 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 30
+    In31 { S7_dynamic:='true'; S7_string_0 := '0'; S7_string_1 := '1' }     : BOOL;     // Bit 31
+END_VAR
+
+VAR_OUTPUT 
+    Out { S7_m_c := 'true'; S7_dynamic := 'true'; S7_visible := 'false' }  : DWORD;     // Output for WinCC with correctly arranged bits
+    S7_Out { S7_dynamic := 'true'; S7_visible := 'false' }                 : DWORD;     // All bits combined into one S7 DWORD for the further use
+END_VAR
+
+VAR_TEMP
+    taBits                  : ARRAY[0..31] OF BOOL;
+    tbBits AT taBits        : ARRAY[0..3] OF BYTE;
+    tdwBits AT taBits       : DWORD;
+    tbBitsWCC               : ARRAY[0..3] OF BYTE;
+    tdwBitsWCC AT tbBitsWCC : DWORD;
+END_VAR
+
+BEGIN
+    taBits[0]  := In0;
+    taBits[1]  := In1;
+    taBits[2]  := In2;
+    taBits[3]  := In3;
+    taBits[4]  := In4;
+    taBits[5]  := In5;
+    taBits[6]  := In6;
+    taBits[7]  := In7;
+    taBits[8]  := In8;
+    taBits[9]  := In9;
+    taBits[10] := In10;
+    taBits[11] := In11;
+    taBits[12] := In12;
+    taBits[13] := In13;
+    taBits[14] := In14;
+    taBits[15] := In15;
+    taBits[16] := In16;
+    taBits[17] := In17;
+    taBits[18] := In18;
+    taBits[19] := In19;
+    taBits[20] := In20;
+    taBits[21] := In21;
+    taBits[22] := In22;
+    taBits[23] := In23;
+    taBits[24] := In24;
+    taBits[25] := In25;
+    taBits[26] := In26;
+    taBits[27] := In27;
+    taBits[28] := In28;
+    taBits[29] := In29;
+    taBits[30] := In30;
+    taBits[31] := In31;
+
+// Выдаём 32 бита как один DWORD (может кому-то пригодится)
+    S7_Out := tdwBits;
+
+// Разворачиваем байты для WinCC
+    tbBitsWCC[0] := tbBits[3];
+    tbBitsWCC[1] := tbBits[2];
+    tbBitsWCC[2] := tbBits[1];
+    tbBitsWCC[3] := tbBits[0];
+
+// Выдаём перевёрнутые биты как один DWORD для тэга WinCC
+    Out := tdwBitsWCC;
+
+END_FUNCTION_BLOCK
