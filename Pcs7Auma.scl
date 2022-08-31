@@ -1,0 +1,2443 @@
+FUNCTION_BLOCK Pcs7Auma
+{ S7_alarm_ui := '1' }
+TITLE = 'AUMA actuator driver'
+VERSION: '0.6'
+AUTHOR: RoVRy
+NAME: Pcs7Auma
+FAMILY: Channel
+
+KNOW_HOW_PROTECT
+
+//============================================================================================================================================================
+// Блок констант статусов сигналов
+//============================================================================================================================================================
+CONST
+
+    ST_BDR  := 16#00;
+    ST_BPR  := 16#28;
+    ST_Sim  := 16#60;
+    ST_UDR  := 16#68;
+    ST_UPR  := 16#78;
+    ST_Good := 16#80;
+    ST_Mnt  := 16#A4;
+    ST_Unk  := 16#FF;    
+
+END_CONST
+
+//============================================================================================================================================================
+// Входные параметры
+//============================================================================================================================================================
+VAR_INPUT
+
+    Sta01_In    {S7_visible := 'true'} : BYTE;                  // Input for up to "1 Byte In"
+    xSta01_In AT Sta01_In : ARRAY[0..7] OF BOOL;
+    
+    Sta02_In    {S7_visible := 'true'} : BYTE;                  // Input for up to "2 Byte In"
+    xSta02_in AT Sta02_In : ARRAY[0..7] OF BOOL;
+    
+    Sta04_In    {S7_visible := 'true'} : WORD;                  // Input for up to "4 Byte In"
+
+    Sta06_In    {S7_visible := 'false'} : WORD;                 // Input for up to "6 Byte In"
+    xSta06_In AT Sta06_In : ARRAY[0..15] OF BOOL;
+
+    Sta08_In    {S7_visible := 'false'} : WORD;                 // Input for up to "8 Byte In"
+    xSta08_In AT Sta08_In : ARRAY[0..15] OF BOOL;
+
+    Sta12_In    {S7_visible := 'false'} : DWORD;                // Input for up to "12 Byte In"
+    wSta12_In AT Sta12_In : ARRAY[0..1] OF WORD;
+
+    Sta16_In    {S7_visible := 'false'} : DWORD;                // Input for up to "16 Byte In"
+    xSta16_In AT Sta16_In : ARRAY[0..31] OF BOOL;
+    wSta16_In AT Sta16_In : ARRAY[0..1] OF WORD;
+
+    Sta20_In    {S7_visible := 'false'} : DWORD;                // Input for up to "20 Byte In"
+    xSta20_In AT Sta20_In : ARRAY[0..31] OF BOOL;
+    wSta20_In AT Sta20_In : ARRAY[0..1] OF WORD;
+
+    Sta22_In    {S7_visible := 'false'} : WORD;                 // Input for up to "22 Byte In"
+
+    Sta24_In    {S7_visible := 'false'} : WORD;                 // Input for up to "24 Byte In"
+    xSta24_In AT Sta24_In : ARRAY[0..15] OF BOOL;
+
+    Sta28_In    {S7_visible := 'false'} : DWORD;                // Input for up to "32 Byte In" - will not processed due duplicated signals
+    wSta28_In AT Sta28_In : ARRAY[0..1] OF WORD;
+
+    Sta32_In    {S7_visible := 'false'} : DWORD;                // Input for up to "32 Byte In"
+    xSta32_In AT Sta32_In : ARRAY[0..31] OF BOOL;
+    wSta32_In AT Sta32_In : ARRAY[0..1] OF WORD;
+
+    Sta36_In    {S7_visible := 'false'} : DWORD;                // Input for up to "40 Byte In"
+    wSta36_In AT Sta36_In : ARRAY[0..1] OF WORD;
+
+    Sta40_In    {S7_visible := 'false'} : DWORD;                // Input for up to "40 Byte In"
+    wSta40_In AT Sta40_In : ARRAY[0..1] OF WORD;
+    
+    InAmount    {S7_link := 'false';
+                 S7_visible := 'false'} : INT := 32;            // Amount of input status bytes, defined in HWConfig
+
+    OutAmount   {S7_link := 'false';
+                 S7_visible := 'false'} : INT := 16;            // Amount of output command bytes, defined in HWConfig
+
+    Open        {S7_visible := 'true'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Operation command in direction Open
+
+    Close       {S7_visible := 'true'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Operation command in direction Close
+
+    Run_SP      {S7_visible := 'true'} : STRUCT
+        Value   : BOOL := TRUE;                                 // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Run to Setpoint
+
+    Reset       {S7_visible := 'true'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                                // Signal status
+    END_STRUCT;                                                 // Reset via Fieldbus, equal to local Reset pushbutton
+
+    ResCmd04    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Reserved for future extensions, bit 0.4
+
+    ResCmd05    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Reserved for future extensions, bit 0.5
+
+    ResCmd06    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Reserved for future extensions, bit 0.6
+
+    ResCmd07    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Reserved for future extensions, bit 0.7
+
+    ResCmd08    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Reserved for future extensions, bit 1.0
+
+    ResCmd09    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Reserved for future extensions, bit 1.1
+
+    ResCmd10    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Reserved for future extensions, bit 1.2
+
+    ResCmd11    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Reserved for future extensions, bit 1.3
+
+    ResCmd12    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Reserved for future extensions, bit 1.4
+
+    ResCmd13    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Reserved for future extensions, bit 1.5
+
+    ResCmd14    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Reserved for future extensions, bit 1.6
+
+    ResCmd15    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Reserved for future extensions, bit 1.7
+
+    SP          {S7_visible := 'true'} : STRUCT
+        Value   : REAL := 0.0;                                  // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Setpoint position
+
+    SP_Scale    {S7_visible := 'true'} : STRUCT
+        High    : REAL := 100.0;                                // High value
+        Low     : REAL := 0.0;                                  // Low value
+    END_STRUCT;                                                 // Range of Setpoint value
+
+    Local_En    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Actuator operation via local controls enabled
+
+    Open_En     {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := TRUE;                                 // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Enabling operation command in direction Open
+
+    Close_En    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := TRUE;                                 // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Enabling operation command in direction Close
+    
+    FbCh1       {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Initiate change-over to channel 1
+
+    FbCh2       {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Initiate change-over to channel 2
+
+    FbEmcy      {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Emergency signal, triggers emergency behaviour
+    
+    PVST        {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Start Partial Valve Stroke Test (functional test)
+
+    FbImP1      {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Run to intermediate position 1
+
+    FbImP2      {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Run to intermediate position 2
+
+    FbImP3      {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Run to intermediate position 3
+
+    FbImP4      {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Run to intermediate position 4
+
+    FbImP5      {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Run to intermediate position 5
+
+    FbImP6      {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Run to intermediate position 6
+
+    FbImP7      {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Run to intermediate position 7
+
+    FbImP8      {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Run to intermediate position 8
+
+    DOut1_In    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Activate digital output 1
+
+    DOut2_In    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Activate digital output 2
+
+    DOut3_In    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Activate digital output 3
+    
+    DOut4_In    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Activate digital output 4
+
+    DOut5_In    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Activate digital output 5
+
+    DOut6_In    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL := FALSE;                                // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Activate digital output 6
+
+    ActPV_In    {S7_visible := 'false'} : STRUCT
+        Value   : REAL := 0.0;                                  // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Actual process value input for a process controller (option)
+    
+    ActPV_Scale {S7_visible := 'false'} : STRUCT
+        High    : REAL := 100.0;                                // High value
+        Low     : REAL := 0.0;                                  // Low value
+    END_STRUCT;                                                 // Range of ActPV value
+
+    Pos_SclIn {S7_visible := 'true'} : STRUCT
+        High    : REAL := 100.0;                                // High value
+        Low     : REAL := 0.0;                                  // Low value
+    END_STRUCT;                                                 // Range of actual position value
+    
+    AIn1_SclIn {S7_visible := 'false'} : STRUCT
+        High    : REAL := 100.0;                                // High value
+        Low     : REAL := 0.0;                                  // Low value
+    END_STRUCT;                                                 // Range of AIN1 value
+
+    AIn2_SclIn {S7_visible := 'false'} : STRUCT
+        High    : REAL := 100.0;                                // High value
+        Low     : REAL := 0.0;                                  // Low value
+    END_STRUCT;                                                 // Range of AIN2 value
+
+    AOut1_In    {S7_visible := 'false'} : STRUCT
+        Value   : REAL := 0.0;                                  // Signal value
+        ST      : BYTE := ST_Unk;                                // Signal status
+    END_STRUCT;                                                 // Fieldbus output AOUT1
+
+    AOut1_Scale {S7_visible := 'false'} : STRUCT
+        High    : REAL := 100.0;                                // High value
+        Low     : REAL := 0.0;                                  // Low value
+    END_STRUCT;                                                 // Range of AOUT1 value
+
+    AOut2_In    {S7_visible := 'false'} : STRUCT
+        Value   : REAL := 0.0;                                  // Signal value
+        ST      : BYTE := ST_Unk;                                // Signal status
+    END_STRUCT;                                                 // Fieldbus output AOUT2
+
+    AOut2_Scale {S7_visible := 'false'} : STRUCT
+        High    : REAL := 100.0;                                // High value
+        Low     : REAL := 0.0;                                  // Low value
+    END_STRUCT;                                                 // Range of AOUT2 value
+
+    SampleTime  {S7_visible := 'false';
+                 S7_link := 'false';
+                 S7_sampletime := 'true'}: REAL := 0.1;         // Sampling time [s] (Assigned automatically)
+
+    ER_AH_Lim   {S7_visible := 'false'} : REAL := 5.0;          // ER high limit
+    ER_AL_LIm   {S7_visible := 'false'} : REAL := -5.0;         // ER low limit
+    ER_Hyst     {S7_visible := 'false'} : REAL := 0.1;          // Hysteresis for ER alarms
+    ER_AH_DC    {S7_visible := 'false'} : REAL := 60.0;         // Delay time for incoming ER alarm [s]
+    ER_AH_DG    {S7_visible := 'false'} : REAL := 0.0;          // Delay time for outgoing ER alarm [s]
+    ER_AL_DC    {S7_visible := 'false'} : REAL := 60.0;         // Delay time for incoming ER alarm [s]
+    ER_AL_DG    {S7_visible := 'false'} : REAL := 0.0;          // Delay time for outgoing ER alarm [s]
+    ER_AH_En    {S7_visible := 'false'} : BOOL := TRUE;         // 1 = Enable ER alarm high
+    ER_AL_En    {S7_visible := 'false'} : BOOL := TRUE;         // 1 = Enable ER alarm low
+
+    Bad_DC      {S7_visible := 'false'} : REAL := 5.0;          // Delay time for incoming communication alarm [s]
+    Bad_DG      {S7_visible := 'false'} : REAL := 0.0;          // Delay time for outgoing communication alarm [s]
+
+    Feature     {S7_visible := 'false'} : STRUCT
+        Bit0    : BOOL := FALSE;                                // With communication fault: 0 = clear all outputs , 1 = keep last values
+        Bit1    : BOOL := FALSE;                                // Torque value range: 0 = -127...+127%, 1 = -1,27...+1,27
+        Bit2    : BOOL := FALSE;                                // Output difference between SP and ActPos: 0 = as is, 1 = absolute value
+        Bit3    : BOOL := FALSE;                                // Reserved               
+        Bit4    : BOOL := FALSE;                                // Reserved
+        Bit5    : BOOL := FALSE;                                // Reserved
+        Bit6    : BOOL := FALSE;                                // Reserved
+        Bit7    : BOOL := FALSE;                                // Reserved
+        Bit8    : BOOL := FALSE;                                // Reserved
+        Bit9    : BOOL := FALSE;                                // Reserved
+        Bit10   : BOOL := FALSE;                                // Reserved
+        Bit11   : BOOL := FALSE;                                // Reserved
+        Bit12   : BOOL := FALSE;                                // Reserved
+        Bit13   : BOOL := FALSE;                                // Reserved
+        Bit14   : BOOL := FALSE;                                // Reserved
+        Bit15   : BOOL := FALSE;                                // Reserved
+        Bit16   : BOOL := FALSE;                                // Reserved
+        Bit17   : BOOL := FALSE;                                // Reserved
+        Bit18   : BOOL := FALSE;                                // Reserved
+        Bit19   : BOOL := FALSE;                                // Reserved
+        Bit20   : BOOL := FALSE;                                // Reserved
+        Bit21   : BOOL := FALSE;                                // Reserved
+        Bit22   : BOOL := FALSE;                                // Reserved
+        Bit23   : BOOL := FALSE;                                // Reserved
+        Bit24   : BOOL := FALSE;                                // Reserved
+        Bit25   : BOOL := FALSE;                                // Reserved
+        Bit26   : BOOL := FALSE;                                // Reserved
+        Bit27   : BOOL := FALSE;                                // Reserved
+        Bit28   : BOOL := FALSE;                                // Reserved
+        Bit29   : BOOL := FALSE;                                // Reserved
+        Bit30   : BOOL := FALSE;                                // Reserved
+        Bit31   : BOOL := FALSE;                                // Reserved
+    END_STRUCT;                                                 // Status of various features
+
+    MsgEn       {S7_visible := 'true'} : STRUCT
+        // MsgEvId01
+        Opened      : BOOL := FALSE;                            // In direction Open: Limit switch or torque switch is active
+        Closed      : BOOL := FALSE;                            // In direction Close: Limit switch or torque switch is active
+        SP_Reached  : BOOL := FALSE;                            // The setpoint is within dead band
+        NotRdyRmt   : BOOL := TRUE;                             // The actuator cannot be operated from Remote (collective signal)
+        Opening     : BOOL := FALSE;                            // An operation command in direction Open is perfomed via fieldbus
+        Closing     : BOOL := FALSE;                            // An operation command in direction Close is perfomed via fieldbus
+        WarnAct     : BOOL := TRUE;                             // Collective signal from all warnings
+        FaultAct    : BOOL := TRUE;                             // Collective signal from all faults. The actuator cannot be operated.
+        // MsgEvId02
+        ThrmFAct    : BOOL := TRUE;                             // Thermal fault. Motor protection tripped.
+        PhaseFlt    : BOOL := TRUE;                             // 3ph AC with internal 24 VDC: phase 2 is missing; 3ph or 1ph with external 24 VDC: one of the phases is missing
+        SelSwRmt    : BOOL := FALSE;                            // Selector switch is in position "Remote"
+        SelSwLoc    : BOOL := FALSE;                            // Selector switch is in position "Local"
+        LSOpnAct    : BOOL := FALSE;                            // Limit switch operated in end position Open
+        LSClsAct    : BOOL := FALSE;                            // Limit switch operated in end position Close
+        TrOpnAct    : BOOL := FALSE;                            // Torque switch operated in end position Open
+        TrClsAct    : BOOL := FALSE;                            // Torque switch operated in end position Close
+        // MsgEvId03
+        Mnt_Req     : BOOL := TRUE;                             // Recommedation to perform maintenance. Collective signal from all maintetance signals.
+        OutOfSpec   : BOOL := TRUE;                             // Actuator is operated outside the normal operation conditions. Collective signal from all 'Out of spec.' signals.
+        FuncChk     : BOOL := TRUE;                             // The actuator is being worked on, output signals are temporarily invalid
+        Failure     : BOOL := TRUE;                             // Actuator function failure, output signals are invalid
+        OpPauseAct  : BOOL := FALSE;                            // The actuator is in off-time (reversing prevention time)
+        InmdPos     : BOOL := FALSE;                            // The actuator is in an intermediate position, neither in Opened, nor in Closed
+        StrStpM     : BOOL := FALSE;                            // The actuator is within the set stepping range
+        ActrRun     : BOOL := FALSE;                            // Actuator is running (output drive is moving)
+        // MsgEvId04
+        HndWhOp     : BOOL := FALSE;                            // Output drive rotates without electric operation command (by handwheel)
+        RunRmtOp    : BOOL := FALSE;                            // Output drive rotates due to operation command from Remote
+        RunLocOp    : BOOL := FALSE;                            // Output drive rotates due to operation command from Local
+        IntmedP1    : BOOL := FALSE;                            // Intermediate position 1 reached
+        IntmedP2    : BOOL := FALSE;                            // Intermediate position 2 reached
+        IntmedP3    : BOOL := FALSE;                            // Intermediate position 3 reached
+        IntmedP4    : BOOL := FALSE;                            // Intermediate position 4 reached
+        IntmedP5    : BOOL := FALSE;                            // Intermediate position 5 reached
+        // MsgEvId05
+        IntmedP6    : BOOL := FALSE;                            // Intermediate position 6 reached
+        IntmedP7    : BOOL := FALSE;                            // Intermediate position 7 reached
+        IntmedP8    : BOOL := FALSE;                            // Intermediate position 8 reached
+        WrOpCmd     : BOOL := FALSE;                            // Wrong operation command. Several commands received simultaneously or setpoint > 1000.
+        SwNotRmt    : BOOL := TRUE;                             // Selector switch is in position Local or 0 (Off)
+        Intlk_Act   : BOOL := FALSE;                            // Actuator is interlocked
+        LocStp_Act  : BOOL := TRUE;                             // Pushbutton Stop of local controls is operated
+        EmcyStp_Act : BOOL := FALSE;                            // Operation mode Emergency Stop is active (Emergency Stop button has been pressed)
+        // MsgEvId06
+        EmcyBh_Act  : BOOL := FALSE;                            // Operation mode Emergency behaviour is active (Emergency signal was sent)
+        FbFailSt    : BOOL := FALSE;                            // No valid communication via fieldbus (despite available connection)
+        IOIface_Act : BOOL := FALSE;                            // The actuator is controlled via the I/O interface (parallel)
+        SILFn_Act   : BOOL := FALSE;                            // The safety function of the SIL sub-assembly is active
+        DisMod_Act  : BOOL := FALSE;                            // Actuator is in operation mode Disabled
+        BypIntl_Act : BOOL := FALSE;                            // Bypass of interlock function is active
+        PVST_Act    : BOOL := FALSE;                            // Partial Valve Stroke Test (PVST) is active
+        Service_Act : BOOL := FALSE;                            // Operation mode Service is active
+        // MsgEvId07
+        HndWhl_Act  : BOOL := FALSE;                            // Manual operation is active (handwheel is engaged), optional signal
+        Cfg_Err     : BOOL := FALSE;                            // Incorrect configuration, current setting of the actuator controls is invalid
+        Mains_Qual  : BOOL := FALSE;                            // Due to insufficient mains quality, the controls cannot detect the phase sequence within pre-set time
+        TrOpn_Flt   : BOOL := FALSE;                            // Torque fault in direction Open
+        TrCls_Flt   : BOOL := FALSE;                            // Torque fault in direction Close
+        Int_Error   : BOOL := FALSE;                            // Internal fault
+        No_react    : BOOL := TRUE;                             // No actuator reaction to operation commands within the set reaction time
+        CfgErrRmt   : BOOL := TRUE;                             // Configuration error of Remote interface active
+        // MsgEvId08
+        WrPhSeq     : BOOL := TRUE;                             // The phase conductor L1, L2 and L3 are connected in the wrong sequence
+        TrqWrCls    : BOOL := FALSE;                            // Warning: Limit value for Torque Warning Close exceeded
+        TrqWrOpn    : BOOL := FALSE;                            // Warning: Limit value for Torque Warning Open exceeded
+        WrnNoRct    : BOOL := FALSE;                            // Warning: No actuator reaction to operation commands within the set reaction time
+        Ctrl_Tmp    : BOOL := TRUE;                             // Warning: Temperature within controls housing too high
+        Extrn_24VDC : BOOL := FALSE;                            // The external 24V DC voltage supply of the controls has exceeded the power supply limits
+        RTC_Cell    : BOOL := TRUE;                             // Warning: The voltage of the RTC button cell is too low
+        RTC_NSet    : BOOL := FALSE;                            // The real time clock has not yet been set on the basis of valid values
+        // MsgEvId09
+        Cfg_Warn    : BOOL := TRUE;                             // Warning: Configuration setting is incorrect. The device can still be operated with restrictions.
+        FOCWrnBdg   : BOOL := FALSE;                            // Warning: FO cable system reserve reached critical or permissible Rx receive level
+        FOCWrnLoop  : BOOL := FALSE;                            // Warning: Optical receiving signal (Ch1) incorrect (No or insufficient Rx receive level) or RS-485 format error (incorrect bits)
+        AIn2Wrn     : BOOL := FALSE;                            // Warning: Loss of signal analogue input 1
+        AIn1Wrn     : BOOL := FALSE;                            // Warning: Loss of signal analogue input 2
+        Int_Warn    : BOOL := FALSE;                            // Internal warning (collective signal)
+        WrnOnTiSt   : BOOL := FALSE;                            // Warning: Max. number of motor starts exceeded
+        WrnOnTiRn   : BOOL := FALSE;                            // Warning: Max. running time (h) exceeded
+        // MsgEvId10
+        WrnOpTime   : BOOL := FALSE;                            // Warning: Max. permissible operating time for an operation (Open-Close) exceeded
+        WrnSPPos    : BOOL := TRUE;                             // Warning: Loss of signal of actuator setpoint position
+        PVST_Req    : BOOL := FALSE;                            // Warning: A partial valve stroke test (PVST) should be performed.
+        WrnFOCCon   : BOOL := FALSE;                            // Warning: FO cable connection not available
+        FltBhvAct   : BOOL := FALSE;                            // The failure behaviour is active
+        PVST_Abrt   : BOOL := FALSE;                            // Partial valve stroke test (PVST) was aborted or could not be started. ! Perform Reset or restart PVST.
+        PVST_Err    : BOOL := FALSE;                            // Partial valve stroke test (PVST) could not be successfully completed.
+        Mnt_Mech    : BOOL := TRUE;                             // Mechanic maintenance requirement in AUMA service
+        // MsgEvId11
+        Mnt_Seals   : BOOL := TRUE;                             // Seal maintenance requirement in AUMA service
+        Mnt_Lubr    : BOOL := TRUE;                             // Lubricant maintenance requirement in AUMA service
+        Mnt_Contact : BOOL := TRUE;                             // Contactor maintenance requirement in AUMA service
+        Mnt_Intrv   : BOOL := TRUE;                             // The set maintenance interval has expired
+        Ch1_FailSt  : BOOL := TRUE;                             // No valid fieldbus communication via channel 1 (application does not communicate with the DCS)
+        Ch2_FailSt  : BOOL := FALSE;                            // No valid fieldbus communication via channel 2 (application does not communicate with the DCS)
+        Safe_ESD    : BOOL := FALSE;                            // Safe ESD (Emergency Shutdown) safety function of the SIL sub-assembly is active
+        Safe_Stop   : BOOL := FALSE;                            // Safe Stop safety function of the SIL sub-assembly is active
+        // MsgEvId12
+        SIL_Fault   : BOOL := FALSE;                            // Warning: A SIL fault of the SIL sub-assembly is active (collective signal)
+        Comm_Fault  : BOOL := TRUE;                             // Communication fault signal based on QRack_F
+
+    END_STRUCT;                                                 // Enable/Disable different messages
+
+    ExtVal01 {S7_visible := 'false'} : ANY;                     // External Value 1
+                  
+    ExtVal02 {S7_visible := 'false'} : ANY;                     // External Value 2
+
+    MsgLock     {S7_visible := 'false'} : STRUCT
+        Value       : BOOL := FALSE;                            // Signal value
+        ST          : BYTE := ST_Unk;                           // Signal status
+    END_STRUCT;                                                 // 1 = Suppress process alarms
+    
+    MsgEvId01   {S7_visible := 'false';
+                 S7_link    := 'false';
+                 S7_param   := 'false';
+                 S7_server  := 'alarm_archiv';
+                 S7_a_type  := 'alarm_8p'} : DWORD := 0;        // Message number
+    
+    MsgEvId02   {S7_visible := 'false';
+                 S7_link    := 'false';
+                 S7_param   := 'false';
+                 S7_server  := 'alarm_archiv';
+                 S7_a_type  := 'alarm_8p'} : DWORD := 0;        // Message number
+
+    MsgEvId03   {S7_visible := 'false';
+                 S7_link    := 'false';
+                 S7_param   := 'false';
+                 S7_server  := 'alarm_archiv';
+                 S7_a_type  := 'alarm_8p'} : DWORD := 0;        // Message number
+
+    MsgEvId04   {S7_visible := 'false';
+                 S7_link    := 'false';
+                 S7_param   := 'false';
+                 S7_server  := 'alarm_archiv';
+                 S7_a_type  := 'alarm_8p'} : DWORD := 0;        // Message number
+
+    MsgEvId05   {S7_visible := 'false';
+                 S7_link    := 'false';
+                 S7_param   := 'false';
+                 S7_server  := 'alarm_archiv';
+                 S7_a_type  := 'alarm_8p'} : DWORD := 0;        // Message number
+
+    MsgEvId06   {S7_visible := 'false';
+                 S7_link    := 'false';
+                 S7_param   := 'false';
+                 S7_server  := 'alarm_archiv';
+                 S7_a_type  := 'alarm_8p'} : DWORD := 0;        // Message number
+
+    MsgEvId07   {S7_visible := 'false';
+                 S7_link    := 'false';
+                 S7_param   := 'false';
+                 S7_server  := 'alarm_archiv';
+                 S7_a_type  := 'alarm_8p'} : DWORD := 0;        // Message number
+
+    MsgEvId08   {S7_visible := 'false';
+                 S7_link    := 'false';
+                 S7_param   := 'false';
+                 S7_server  := 'alarm_archiv';
+                 S7_a_type  := 'alarm_8p'} : DWORD := 0;        // Message number
+
+    MsgEvId09   {S7_visible := 'false';
+                 S7_link    := 'false';
+                 S7_param   := 'false';
+                 S7_server  := 'alarm_archiv';
+                 S7_a_type  := 'alarm_8p'} : DWORD := 0;        // Message number
+
+    MsgEvId10   {S7_visible := 'false';
+                 S7_link    := 'false';
+                 S7_param   := 'false';
+                 S7_server  := 'alarm_archiv';
+                 S7_a_type  := 'alarm_8p'} : DWORD := 0;        // Message number
+
+    MsgEvId11   {S7_visible := 'false';
+                 S7_link    := 'false';
+                 S7_param   := 'false';
+                 S7_server  := 'alarm_archiv';
+                 S7_a_type  := 'alarm_8p'} : DWORD := 0;        // Message number
+
+    MsgEvId12   {S7_visible := 'false';
+                 S7_link    := 'false';
+                 S7_param   := 'false';
+                 S7_server  := 'alarm_archiv';
+                 S7_a_type  := 'alarm_8p'} : DWORD := 0;        // Message number
+
+    RackF_In    {S7_visible := 'true'} : BOOL := FALSE;         // Rack Fault signal input
+
+END_VAR
+
+// ============================================================================================================================================================
+// Выходные параметры
+// ============================================================================================================================================================
+VAR_OUTPUT
+    
+    Cmd01_Out   {S7_visible := 'true' } : BYTE;                 // Output for up to "1 Byte Out"
+    xCmd01_Out AT Cmd01_Out : ARRAY[0..7] OF BOOL;
+    
+    Cmd02_Out   {S7_visible := 'true' } : BYTE;                 // Output for up to "2 Byte Out" - will not be processed as reserved
+    xCmd02_Out AT Cmd02_Out : ARRAY[0..7] OF BOOL;
+
+    Cmd04_Out   {S7_visible := 'true' } : WORD;                 // Output for up to "4 Byte Out"
+    
+    Cmd06_Out   {S7_visible := 'false'} : WORD;                 // Output for up to "6 Byte Out"
+    xCmd06_Out AT Cmd06_Out : ARRAY[0..15] OF BOOL;
+
+    Cmd08_Out   {S7_visible := 'false'} : WORD;                 // Output for up to "8 Byte Out"
+    xCmd08_Out AT Cmd08_Out : ARRAY[0..15] OF BOOL;
+
+    Cmd12_Out   {S7_visible := 'false'} : DWORD;                // Output for up to "12 Byte Out"
+    wCmd12_Out AT Cmd12_Out : ARRAY[0..1] OF WORD;
+    
+    Cmd16_Out   {S7_visible := 'false'} : DWORD;                // Output for up to "16 Byte Out"
+    wCmd16_Out AT Cmd16_Out : ARRAY[0..1] OF WORD;
+
+    Bad         {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE := ST_Good;                              // Signal status
+    END_STRUCT;                                                 // Connection status
+
+    Pos_Out     {S7_visible := 'true'} : STRUCT
+        Value   : REAL := 0.0;                                  // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Current actuator position
+
+    Torq_Out    {S7_visible := 'true'} : STRUCT
+        Value   : REAL := 0.0;                                  // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Current torque of the actuator (-127% for Close dir., +127% to Open dir.)
+
+    AIn1_Out    {S7_visible := 'false'} : STRUCT
+        Value   : REAL := 0.0;                                  // Signal value
+        ST      : BYTE := ST_Unk;                               // Signal status
+    END_STRUCT;                                                 // Value of the first additional free analogue current input
+    
+    AIn1_SclOut {S7_visible := 'false'} : STRUCT
+        High    : REAL;                                         // High value
+        Low     : REAL;                                         // Low value
+    END_STRUCT;                                                 // Range of AIN1 value
+
+    AIn2_Out    {S7_visible := 'false'} : STRUCT
+        Value   : REAL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Value of the second additional free analogue current input
+
+    AIn2_SclOut {S7_visible := 'false'} : STRUCT
+        High    : REAL;                                         // High value
+        Low     : REAL;                                         // Low value
+    END_STRUCT;                                                 // Range of AIN2 value
+
+    ER          {S7_visible := 'true'} : STRUCT
+        Value   : REAL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Control error
+    
+    Opened      {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // In direction Open: Limit switch or torque switch is active
+
+    Closed      {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // In direction Close: Limit switch or torque switch is active
+
+    SP_Reached  {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // The setpoint is within dead band
+
+    NotRdyRmt   {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // The actuator cannot be operated from Remote (collective signal)
+
+    Opening     {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // An operation command in direction Open is perfomed via fieldbus
+
+    Closing     {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // An operation command in direction Close is perfomed via fieldbus
+
+    WarnAct     {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Collective signal from all warnings
+
+    FaultAct    {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Collective signal from all faults. The actuator cannot be operated.
+
+    ThrmFAct    {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Thermal fault. Motor protection tripped.
+
+    PhaseFlt    {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // 3ph AC with internal 24 VDC: phase 2 is missing; 3ph or 1ph with external 24 VDC: one of the phases is missing
+
+    SelSwRmt    {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Selector switch is in position "Remote"
+
+    SelSwLoc    {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Selector switch is in position "Local"
+
+    LSOpnAct    {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Limit switch operated in end position Open
+
+    LSClsAct    {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Limit switch operated in end position Close
+
+    TrOpnAct    {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Torque switch operated in end position Open
+
+    TrClsAct    {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Torque switch operated in end position Close
+    
+    Mnt_Req     {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Recommedation to perform maintenance. Collective signal from all maintetance signals.
+
+    OutOfSpec   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Actuator is operated outside the normal operation conditions. Collective signal from all 'Out of spec.' signals.
+
+    FuncChk     {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // The actuator is being worked on, output signals are temporarily invalid
+
+    Failure     {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Actuator function failure, output signals are invalid
+
+    DevOK       {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // The device is ready for remote control, no AUMA warnings, no AUMA faults
+
+    OpPauseAct  {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // The actuator is in off-time (reversing prevention time)
+
+    InmdPos     {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // The actuator is in an intermediate position, neither in Opened, nor in Closed
+
+    StrStpM     {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // The actuator is within the set stepping range
+
+    ActrRun     {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Actuator is running (output drive is moving)
+
+    HndWhOp     {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Output drive rotates without electric operation command (by handwheel)
+
+    RunRmtOp    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Output drive rotates due to operation command from Remote
+
+    RunLocOp    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Output drive rotates due to operation command from Local
+
+    IntmedP1    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Intermediate position 1 reached
+
+    IntmedP2    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Intermediate position 2 reached
+
+    IntmedP3    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Intermediate position 3 reached
+
+    IntmedP4    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Intermediate position 4 reached
+
+    IntmedP5    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Intermediate position 5 reached
+
+    IntmedP6    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Intermediate position 6 reached
+
+    IntmedP7    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Intermediate position 7 reached
+
+    IntmedP8    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Intermediate position 8 reached
+
+    DIn1_Act    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // A high signal (+24 VDC) is present at digital input 1
+
+    DIn2_Act    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // A high signal (+24 VDC) is present at digital input 2
+
+    DIn3_Act    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // A high signal (+24 VDC) is present at digital input 3
+
+    DIn4_Act    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // A high signal (+24 VDC) is present at digital input 4
+
+    DIn5_Act    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // A high signal (+24 VDC) is present at digital input 5
+
+    DIn6_Act    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // A high signal (+24 VDC) is present at digital input 6
+    
+    WrOpCmd     {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Wrong operation command. Several commands received simultaneously or setpoint > 1000.
+    
+    SwNotRmt    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Selector switch is in position Local or 0 (Off)
+    
+    Intlk_Act   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Actuator is interlocked
+
+    LocStp_Act  {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Pushbutton Stop of local controls is operated
+
+    EmcyStp_Act {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Operation mode Emergency Stop is active (Emergency Stop button has been pressed)
+
+    EmcyBh_Act  {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Operation mode Emergency behaviour is active (Emergency signal was sent)
+
+    FbFailSt    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // No valid communication via fieldbus (despite available connection)
+
+    IOIface_Act {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // The actuator is controlled via the I/O interface (parallel)
+
+    SILFn_Act   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // The safety function of the SIL sub-assembly is active
+
+    DisMod_Act  {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Actuator is in operation mode Disabled
+    
+    BypIntl_Act {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Bypass of interlock function is active
+
+    PVST_Act    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Partial Valve Stroke Test (PVST) is active
+    
+    Service_Act {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Operation mode Service is active
+
+    HndWhl_Act  {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Manual operation is active (handwheel is engaged), optional signal
+    
+    Cfg_Err     {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Incorrect configuration, current setting of the actuator controls is invalid
+
+    Mains_Qual  {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Due to insufficient mains quality, the controls cannot detect the phase sequence within pre-set time
+    
+    TrOpn_Flt   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Torque fault in direction Open
+
+    TrCls_Flt   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Torque fault in direction Close
+
+    Int_Error   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Internal fault
+
+    No_react    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // No actuator reaction to operation commands within the set reaction time
+    
+    CfgErrRmt   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Configuration error of Remote interface active
+    
+    WrPhSeq     {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // The phase conductor L1, L2 and L3 are connected in the wrong sequence
+
+    TrqWrCls    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Warning: Limit value for Torque Warning Close exceeded
+
+    TrqWrOpn    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Warning: Limit value for Torque Warning Open exceeded
+
+    WrnNoRct    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Warning: No actuator reaction to operation commands within the set reaction time
+
+    Ctrl_Tmp    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Warning: Temperature within controls housing too high
+
+    Extrn_24VDC {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // The external 24V DC voltage supply of the controls has exceeded the power supply limits
+
+    RTC_Cell    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Warning: The voltage of the RTC button cell is too low
+
+    RTC_NSet    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // The real time clock has not yet been set on the basis of valid values
+
+    Cfg_Warn    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Warning: Configuration setting is incorrect. The device can still be operated with restrictions.
+
+    FOCWrnBdg   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Warning: FO cable system reserve reached critical or permissible Rx receive level
+    
+    FOCWrnLoop  {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Warning: Optical receiving signal (Ch1) incorrect (No or insufficient Rx receive level) or RS-485 format error (incorrect bits)
+
+    AIn1Wrn     {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Warning: Loss of signal analogue input 1
+
+    AIn2Wrn     {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Warning: Loss of signal analogue input 2
+    
+    Int_Warn    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Internal warning (collective signal)
+
+    WrnOnTiSt   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Warning: Max. number of motor starts exceeded
+    
+    WrnOnTiRn   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Warning: Max. running time (h) exceeded
+    
+    WrnOpTime   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Warning: Max. permissible operating time for an operation (Open-Close) exceeded
+
+    WrnSPPos    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Warning: Loss of signal of actuator setpoint position
+
+    PVST_Req    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Warning: A partial valve stroke test (PVST) should be performed.
+
+    WrnFOCCon   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Warning: FO cable connection not available
+
+    FltBhvAct   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // The failure behaviour is active
+
+    PVST_Abrt   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Partial valve stroke test (PVST) was aborted or could not be started. ! Perform Reset or restart PVST.
+
+    PVST_Err    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Partial valve stroke test (PVST) could not be successfully completed.
+
+    Mnt_Mech    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Mechanic maintenance requirement in AUMA service
+
+    Mnt_Seals   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Seal maintenance requirement in AUMA service
+
+    Mnt_Lubr    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Lubricant maintenance requirement in AUMA service
+
+    Mnt_Contact {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Contactor maintenance requirement in AUMA service
+
+    Mnt_Intrv   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // The set maintenance interval has expired
+
+    Ch1_Act     {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Channel 1 is the active operation command channel
+
+    Ch2_Act     {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Channel 2 is the active operation command channel
+
+    Ch1_DataEx  {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Channel 1 is in the data exchange state
+
+    Ch2_DataEx  {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Channel 2 is in the data exchange state
+    
+    Ch1_FailSt  {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // No valid fieldbus communication via channel 1 (application does not communicate with the DCS)
+
+    Ch2_FailSt  {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // No valid fieldbus communication via channel 2 (application does not communicate with the DCS)
+
+    Ch1_Actvy   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Fieldbus communication on channel 1
+
+    Ch2_Actvy   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Fieldbus communication on channel 2
+
+    Safe_ESD    {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Safe ESD (Emergency Shutdown) safety function of the SIL sub-assembly is active
+
+    Safe_Stop   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Safe Stop safety function of the SIL sub-assembly is active
+
+    SIL_Fault   {S7_visible := 'false'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // Warning: A SIL fault of the SIL sub-assembly is active (collective signal)
+
+    ER_AH_Act   {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // 1 = ER  alarm high active
+
+    ER_AL_Act   {S7_visible := 'true'} : STRUCT
+        Value   : BOOL;                                         // Signal value
+        ST      : BYTE;                                         // Signal status
+    END_STRUCT;                                                 // 1 = ER  alarm low active
+
+    MsgErr01 {S7_visible := 'false';
+              S7_dynamic := 'true'} : BOOL := FALSE;            // 1 = Messaging Error Occurs
+
+    MsgStat01 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: Status Output
+
+    MsgAckn01 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: ACK_STATE output
+
+    MsgErr02 {S7_visible := 'false';
+              S7_dynamic := 'true'} : BOOL := FALSE;            // 1 = Messaging Error Occurs
+
+    MsgStat02 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: Status Output
+
+    MsgAckn02 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: ACK_STATE output
+
+    MsgErr03 {S7_visible := 'false';
+              S7_dynamic := 'true'} : BOOL := FALSE;            // 1 = Messaging Error Occurs
+
+    MsgStat03 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: Status Output
+
+    MsgAckn03 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: ACK_STATE output
+
+    MsgErr04 {S7_visible := 'false';
+              S7_dynamic := 'true'} : BOOL := FALSE;            // 1 = Messaging Error Occurs
+
+    MsgStat04 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: Status Output
+
+    MsgAckn04 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: ACK_STATE output
+
+    MsgErr05 {S7_visible := 'false';
+              S7_dynamic := 'true'} : BOOL := FALSE;            // 1 = Messaging Error Occurs
+
+    MsgStat05 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: Status Output
+
+    MsgAckn05 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: ACK_STATE output
+
+    MsgErr06 {S7_visible := 'false';
+              S7_dynamic := 'true'} : BOOL := FALSE;            // 1 = Messaging Error Occurs
+
+    MsgStat06 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: Status Output
+
+    MsgAckn06 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: ACK_STATE output
+
+    MsgErr07 {S7_visible := 'false';
+              S7_dynamic := 'true'} : BOOL := FALSE;            // 1 = Messaging Error Occurs
+
+    MsgStat07 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: Status Output
+
+    MsgAckn07 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: ACK_STATE output
+
+    MsgErr08 {S7_visible := 'false';
+              S7_dynamic := 'true'} : BOOL := FALSE;            // 1 = Messaging Error Occurs
+
+    MsgStat08 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: Status Output
+
+    MsgAckn08 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: ACK_STATE output
+
+    MsgErr09 {S7_visible := 'false';
+              S7_dynamic := 'true'} : BOOL := FALSE;            // 1 = Messaging Error Occurs
+
+    MsgStat09 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: Status Output
+
+    MsgAckn09 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: ACK_STATE output
+
+    MsgErr10 {S7_visible := 'false';
+              S7_dynamic := 'true'} : BOOL := FALSE;            // 1 = Messaging Error Occurs
+
+    MsgStat10 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: Status Output
+
+    MsgAckn10 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: ACK_STATE output
+
+    MsgErr11 {S7_visible := 'false';
+              S7_dynamic := 'true'} : BOOL := FALSE;            // 1 = Messaging Error Occurs
+
+    MsgStat11 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: Status Output
+
+    MsgAckn11 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: ACK_STATE output
+
+    MsgErr12 {S7_visible := 'false';
+              S7_dynamic := 'true'} : BOOL := FALSE;            // 1 = Messaging Error Occurs
+
+    MsgStat12 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: Status Output
+
+    MsgAckn12 {S7_visible := 'false';
+               S7_dynamic := 'true'} : WORD := W#16#0000;       // ALARM_8P: ACK_STATE output
+
+    Status1 {S7_visible := 'false'} : DWORD := DW#16#00000000;  // Status1
+    Status2 {S7_visible := 'false'} : DWORD := DW#16#00000000;  // Status2
+    Status3 {S7_visible := 'false'} : DWORD := DW#16#00000000;  // Status3
+    Status4 {S7_visible := 'false'} : DWORD := DW#16#00000000;  // Status4
+    Status5 {S7_visible := 'false'} : DWORD := DW#16#00000000;  // Status5
+    Status6 {S7_visible := 'false'} : DWORD := DW#16#00000000;  // Status6
+
+END_VAR
+
+// ============================================================================================================================================================
+// Временные параметры
+// ============================================================================================================================================================
+VAR_TEMP
+
+    tReal               : REAL;
+    tSP                 : REAL;
+    tTorq               : REAL;
+//    tAddr               : INT;
+    tST                 : BYTE;
+    tAllMsgEn           : BOOL;
+    tBool               : BOOL;
+
+    tByte               : BYTE;
+    tB2Bits AT tByte    : ARRAY[0..7] OF BOOL;
+
+    tRetVal             : INT;
+
+    tWord               : WORD;
+    tW2Byte AT tWord    : ARRAY[0..1] OF BYTE;
+    tW2Bits AT tWord    : ARRAY[0..15] OF BOOL;
+
+    tDWord              : DWORD;
+    tDW2Byte AT tDWord  : ARRAY[0..3] OF BYTE;
+    tDW2Word AT tDWord  : ARRAY[0..1] OF WORD;
+
+    tER         : REAL;
+
+    tFeature    : STRUCT
+        Bit0    : BOOL;                                         // With communication fault: 0 = clear all outputs , 1 = keep last values
+        Bit1    : BOOL;                                         // Torque value range: 0 = -127...+127%, 1 = -1,27...+1,27
+        Bit2    : BOOL;                                         // Output difference between SP and ActPos: 0 = as is, 1 = absolute value
+        Bit3    : BOOL;                                         // Reserved               
+        Bit4    : BOOL;                                         // Reserved
+        Bit5    : BOOL;                                         // Reserved
+        Bit6    : BOOL;                                         // Reserved
+        Bit7    : BOOL;                                         // Reserved
+        Bit8    : BOOL;                                         // Reserved
+        Bit9    : BOOL;                                         // Reserved
+        Bit10   : BOOL;                                         // Reserved
+        Bit11   : BOOL;                                         // Reserved
+        Bit12   : BOOL;                                         // Reserved
+        Bit13   : BOOL;                                         // Reserved
+        Bit14   : BOOL;                                         // Reserved
+        Bit15   : BOOL;                                         // Reserved
+        Bit16   : BOOL;                                         // Reserved
+        Bit17   : BOOL;                                         // Reserved
+        Bit18   : BOOL;                                         // Reserved
+        Bit19   : BOOL;                                         // Reserved
+        Bit20   : BOOL;                                         // Reserved
+        Bit21   : BOOL;                                         // Reserved
+        Bit22   : BOOL;                                         // Reserved
+        Bit23   : BOOL;                                         // Reserved
+        Bit24   : BOOL;                                         // Reserved
+        Bit25   : BOOL;                                         // Reserved
+        Bit26   : BOOL;                                         // Reserved
+        Bit27   : BOOL;                                         // Reserved
+        Bit28   : BOOL;                                         // Reserved
+        Bit29   : BOOL;                                         // Reserved
+        Bit30   : BOOL;                                         // Reserved
+        Bit31   : BOOL;                                         // Reserved
+    END_STRUCT;                                                 // Status of various features
+    tdwFeature AT tFeature : DWORD;
+    
+END_VAR
+
+// ============================================================================================================================================================
+// Статические параметры
+// ============================================================================================================================================================
+VAR
+
+    ALARM_8P_01 : ALARM_8P;
+    ALARM_8P_02 : ALARM_8P;
+    ALARM_8P_03 : ALARM_8P;
+    ALARM_8P_04 : ALARM_8P;
+    ALARM_8P_05 : ALARM_8P;
+    ALARM_8P_06 : ALARM_8P;
+    ALARM_8P_07 : ALARM_8P;
+    ALARM_8P_08 : ALARM_8P;
+    ALARM_8P_09 : ALARM_8P;
+    ALARM_8P_10 : ALARM_8P;
+    ALARM_8P_11 : ALARM_8P;
+    ALARM_8P_12 : ALARM_8P;
+
+    sBadTimer   : REAL := 0.0;
+    sERTimer    : REAL := 0.0;
+
+    sBadFImp    : BOOL := FALSE;
+    sBadRImp    : BOOL := FALSE;
+    sERAHFImp   : BOOL := FALSE;
+    sERAHRImp   : BOOL := FALSE;
+    sERALFImp   : BOOL := FALSE;
+    sERALRImp   : BOOL := FALSE;
+
+END_VAR
+
+// ============================================================================================================================================================
+// Код
+// ============================================================================================================================================================
+BEGIN
+
+    Bad.Value := FALSE;
+    Bad.ST := ST_Good;
+
+    sBadFImp := RackF_In AND (NOT Bad.Value);
+    sBadRImp := (NOT RackF_In) AND Bad.Value;
+
+    IF sBadFImp = TRUE THEN
+        IF Bad_DC = 0.0 THEN
+            Bad.Value := TRUE;
+        ELSE
+            sBadTimer := sBadTimer + SampleTime;
+            IF sBadTimer >= Bad_DC THEN
+                Bad.Value := TRUE;
+                sBadTimer := 0.0;
+            END_IF;
+        END_IF;
+    END_IF;
+
+    IF sBadRImp = TRUE THEN
+        IF Bad_DG = 0.0 THEN
+            Bad.Value := FALSE;
+        ELSE
+            sBadTimer := sBadTimer + SampleTime;
+            IF sBadTimer >= Bad_DG THEN
+                Bad.Value := FALSE;
+                sBadTimer := 0.0;
+            END_IF;
+        END_IF;
+    END_IF;
+
+    IF InAmount < 1 OR InAmount > 40 OR OutAmount < 1 OR OutAmount > 26 THEN
+        Bad.Value := TRUE;
+    END_IF;
+
+    IF Bad.Value = TRUE THEN
+        IF Feature.Bit0 = TRUE THEN
+            // Раз связи нет, но Feature говорит сохранять предыдущие значения, то меняем только статусы на "Bad, device related"
+            Opened.ST := ST_BDR;
+            Closed.ST := ST_BDR;
+            SP_Reached.ST := ST_BDR;
+            NotRdyRmt.ST := ST_BDR;
+            Opening.ST := ST_BDR;
+            Closing.ST := ST_BDR;
+            WarnAct.ST := ST_BDR;
+            FaultAct.ST := ST_BDR;
+
+            ThrmFAct.ST := ST_BDR;
+            PhaseFlt.ST := ST_BDR;
+            SelSwRmt.ST := ST_BDR;
+            SelSwLoc.ST := ST_BDR;
+            LSOpnAct.ST := ST_BDR;
+            LSClsAct.ST := ST_BDR;
+            TrOpnAct.ST := ST_BDR;
+            TrClsAct.ST := ST_BDR;
+
+            Pos_Out.ST := ST_BDR;
+            ER.ST := ST_BDR;
+
+            DevOK.ST := ST_BDR;
+            OpPauseAct.ST := ST_BDR;
+            InmdPos.ST := ST_BDR;
+            StrStpM.ST := ST_BDR;
+            ActrRun.ST := ST_BDR;
+            HndWhOp.ST := ST_BDR;
+            RunRmtOp.ST := ST_BDR;
+            RunLocOp.ST := ST_BDR;
+
+            IntmedP1.ST := ST_BDR;
+            IntmedP2.ST := ST_BDR;
+            IntmedP3.ST := ST_BDR;
+            IntmedP4.ST := ST_BDR;
+            IntmedP5.ST := ST_BDR;
+            IntmedP6.ST := ST_BDR;
+            IntmedP7.ST := ST_BDR;
+            IntmedP8.ST := ST_BDR;
+            DIn1_Act.ST := ST_BDR;
+            DIn2_Act.ST := ST_BDR;
+            DIn3_Act.ST := ST_BDR;
+            DIn4_Act.ST := ST_BDR;
+            DIn5_Act.ST := ST_BDR;
+            DIn6_Act.ST := ST_BDR;
+
+            Torq_Out.ST := ST_BDR;
+            AIn1_Out.ST := ST_BDR;
+
+            WrOpCmd.ST := ST_BDR;
+            SwNotRmt.ST := ST_BDR;
+            Intlk_Act.ST := ST_BDR;
+            LocStp_Act.ST := ST_BDR;
+            EmcyStp_Act.ST := ST_BDR;
+            EmcyBh_Act.ST := ST_BDR;
+            FbFailSt.ST := ST_BDR;
+            IOIface_Act.ST := ST_BDR;
+            SILFn_Act.ST := ST_BDR;
+            DisMod_Act.ST := ST_BDR;
+            BypIntl_Act.ST := ST_BDR;
+            PVST_Act.ST := ST_BDR;
+            Service_Act.ST := ST_BDR;
+            HndWhl_Act.ST := ST_BDR;
+            Cfg_Err.ST := ST_BDR;
+            Mains_Qual.ST := ST_BDR;
+            TrOpn_Flt.ST := ST_BDR;
+            TrCls_Flt.ST := ST_BDR;
+            Int_Error.ST := ST_BDR;
+            No_react.ST := ST_BDR;
+            CfgErrRmt.ST := ST_BDR;
+            WrPhSeq.ST := ST_BDR;
+
+            TrqWrCls.ST := ST_BDR;
+            TrqWrOpn.ST := ST_BDR;
+            WrnNoRct.ST := ST_BDR;
+            Ctrl_Tmp.ST := ST_BDR;
+            Extrn_24VDC.ST := ST_BDR;
+            RTC_Cell.ST := ST_BDR;
+            RTC_NSet.ST := ST_BDR;
+            Cfg_Warn.ST := ST_BDR;
+            FOCWrnBdg.ST := ST_BDR;
+            FOCWrnLoop.ST := ST_BDR;
+            AIn2Wrn.ST := ST_BDR;
+            AIn1Wrn.ST := ST_BDR;
+            Int_Warn.ST := ST_BDR;
+            WrnOnTiSt.ST := ST_BDR;
+            WrnOnTiRn.ST := ST_BDR;
+            WrnOpTime.ST := ST_BDR;
+            WrnSPPos.ST := ST_BDR;
+            PVST_Req.ST := ST_BDR;
+            WrnFOCCon.ST := ST_BDR;
+            FltBhvAct.ST := ST_BDR;
+            PVST_Abrt.ST := ST_BDR;
+            PVST_Err.ST := ST_BDR;
+
+            AIn2_Out.ST := ST_BDR;
+
+            Mnt_Mech.ST := ST_BDR;
+            Mnt_Seals.ST := ST_BDR;
+            Mnt_Lubr.ST := ST_BDR;
+            Mnt_Contact.ST := ST_BDR;
+            Mnt_Intrv.ST := ST_BDR;
+
+            Ch1_Act.ST := ST_BDR;
+            Ch2_Act.ST := ST_BDR;
+            Ch1_DataEx.ST := ST_BDR;
+            Ch2_DataEx.ST := ST_BDR;
+            Ch1_FailSt.ST := ST_BDR;
+            Ch2_FailSt.ST := ST_BDR;
+            Ch1_Actvy.ST := ST_BDR;
+            Ch2_Actvy.ST := ST_BDR;
+            Safe_ESD.ST := ST_BDR;
+            Safe_Stop.ST := ST_BDR;
+            SIL_Fault.ST := ST_BDR;
+
+        ELSE
+            // Иначе обнуляем все выходы и присваиваем статусы "Bad, device related"
+            Opened.Value := FALSE; Opened.ST := ST_BDR;
+            Closed.Value := FALSE; Closed.ST := ST_BDR;
+            SP_Reached.Value := FALSE; SP_Reached.ST := ST_BDR;
+            NotRdyRmt.Value := FALSE; NotRdyRmt.ST := ST_BDR;
+            Opening.Value := FALSE; Opening.ST := ST_BDR;
+            Closing.Value := FALSE; Closing.ST := ST_BDR;
+            WarnAct.Value := FALSE; WarnAct.ST := ST_BDR;
+            FaultAct.Value := FALSE; FaultAct.ST := ST_BDR;
+
+            ThrmFAct.Value := FALSE; ThrmFAct.ST := ST_BDR;
+            PhaseFlt.Value := FALSE; PhaseFlt.ST := ST_BDR;
+            SelSwRmt.Value := FALSE; SelSwRmt.ST := ST_BDR;
+            SelSwLoc.Value := FALSE; SelSwLoc.ST := ST_BDR;
+            LSOpnAct.Value := FALSE; LSOpnAct.ST := ST_BDR;
+            LSClsAct.Value := FALSE; LSClsAct.ST := ST_BDR;
+            TrOpnAct.Value := FALSE; TrOpnAct.ST := ST_BDR;
+            TrClsAct.Value := FALSE; TrClsAct.ST := ST_BDR;
+
+            Pos_Out.Value := 0.0; Pos_Out.ST := ST_BDR;
+            ER.Value := 0.0; ER.ST := ST_BDR;
+
+            DevOK.ST := ST_BDR;
+            OpPauseAct.ST := ST_BDR;
+            InmdPos.ST := ST_BDR;
+            StrStpM.ST := ST_BDR;
+            ActrRun.ST := ST_BDR;
+            HndWhOp.ST := ST_BDR;
+            RunRmtOp.ST := ST_BDR;
+            RunLocOp.ST := ST_BDR;
+
+            IntmedP1.ST := ST_BDR;
+            IntmedP2.ST := ST_BDR;
+            IntmedP3.ST := ST_BDR;
+            IntmedP4.ST := ST_BDR;
+            IntmedP5.ST := ST_BDR;
+            IntmedP6.ST := ST_BDR;
+            IntmedP7.ST := ST_BDR;
+            IntmedP8.ST := ST_BDR;
+            DIn1_Act.ST := ST_BDR;
+            DIn2_Act.ST := ST_BDR;
+            DIn3_Act.ST := ST_BDR;
+            DIn4_Act.ST := ST_BDR;
+            DIn5_Act.ST := ST_BDR;
+            DIn6_Act.ST := ST_BDR;
+
+            Torq_Out.ST := ST_BDR;
+            AIn1_Out.ST := ST_BDR;
+
+            WrOpCmd.ST := ST_BDR;
+            SwNotRmt.ST := ST_BDR;
+            Intlk_Act.ST := ST_BDR;
+            LocStp_Act.ST := ST_BDR;
+            EmcyStp_Act.ST := ST_BDR;
+            EmcyBh_Act.ST := ST_BDR;
+            FbFailSt.ST := ST_BDR;
+            IOIface_Act.ST := ST_BDR;
+            SILFn_Act.ST := ST_BDR;
+            DisMod_Act.ST := ST_BDR;
+            BypIntl_Act.ST := ST_BDR;
+            PVST_Act.ST := ST_BDR;
+            Service_Act.ST := ST_BDR;
+            HndWhl_Act.ST := ST_BDR;
+            Cfg_Err.ST := ST_BDR;
+            Mains_Qual.ST := ST_BDR;
+            TrOpn_Flt.ST := ST_BDR;
+            TrCls_Flt.ST := ST_BDR;
+            Int_Error.ST := ST_BDR;
+            No_react.ST := ST_BDR;
+            CfgErrRmt.ST := ST_BDR;
+            WrPhSeq.ST := ST_BDR;
+
+            TrqWrCls.ST := ST_BDR;
+            TrqWrOpn.ST := ST_BDR;
+            WrnNoRct.ST := ST_BDR;
+            Ctrl_Tmp.ST := ST_BDR;
+            Extrn_24VDC.ST := ST_BDR;
+            RTC_Cell.ST := ST_BDR;
+            RTC_NSet.ST := ST_BDR;
+            Cfg_Warn.ST := ST_BDR;
+            FOCWrnBdg.ST := ST_BDR;
+            FOCWrnLoop.ST := ST_BDR;
+            AIn2Wrn.ST := ST_BDR;
+            AIn1Wrn.ST := ST_BDR;
+            Int_Warn.ST := ST_BDR;
+            WrnOnTiSt.ST := ST_BDR;
+            WrnOnTiRn.ST := ST_BDR;
+            WrnOpTime.ST := ST_BDR;
+            WrnSPPos.ST := ST_BDR;
+            PVST_Req.ST := ST_BDR;
+            WrnFOCCon.ST := ST_BDR;
+            FltBhvAct.ST := ST_BDR;
+            PVST_Abrt.ST := ST_BDR;
+            PVST_Err.ST := ST_BDR;
+
+            AIn2_Out.ST := ST_BDR;
+
+            Mnt_Mech.ST := ST_BDR;
+            Mnt_Seals.ST := ST_BDR;
+            Mnt_Lubr.ST := ST_BDR;
+            Mnt_Contact.ST := ST_BDR;
+            Mnt_Intrv.ST := ST_BDR;
+
+            Ch1_Act.ST := ST_BDR;
+            Ch2_Act.ST := ST_BDR;
+            Ch1_DataEx.ST := ST_BDR;
+            Ch2_DataEx.ST := ST_BDR;
+            Ch1_FailSt.ST := ST_BDR;
+            Ch2_FailSt.ST := ST_BDR;
+            Ch1_Actvy.ST := ST_BDR;
+            Ch2_Actvy.ST := ST_BDR;
+            Safe_ESD.ST := ST_BDR;
+            Safe_Stop.ST := ST_BDR;
+            SIL_Fault.ST := ST_BDR;
+
+        END_IF;
+
+        RETURN;
+
+    END_IF;
+
+// Раз всё хорошо (Bad = 0), то статус всех выходных сигналов делаем "хорошим".
+    tST := ST_Good;
+        
+// Обрабатываем первый статусный байт
+    FaultAct.Value := xSta01_In[7];
+    FaultAct.ST := tST;
+    WarnAct.Value := xSta01_In[6];
+    WarnAct.ST := tST;
+    Closing.Value := xSta01_In[5];
+    Closing.ST := tST;
+    Opening.Value := xSta01_In[4];
+    Opening.ST := tST;
+    NotRdyRmt.Value := xSta01_In[3];
+    NotRdyRmt.ST := tST;
+    SP_Reached.Value := xSta01_In[2];
+    SP_Reached.ST := tST;
+    Closed.Value := xSta01_In[1];
+    Closed.ST := tST;
+    Opened.Value := xSta01_In[0];
+    Opened.ST := tST;
+
+// Если в HWConfig входных байт больше или равно 2, то обрабатываем второй статусный байт
+    IF InAmount >= 2 THEN 
+        TrClsAct.Value := xSta02_In[7];
+        TrClsAct.ST := tST;
+        TrOpnAct.Value := xSta02_In[6];
+        TrOpnAct.ST := tST;        
+        LSClsAct.Value := xSta02_In[5];
+        LSClsAct.ST := tST;
+        LSOpnAct.Value := xSta02_In[4];
+        LSOpnAct.ST := tST;
+        SelSwLoc.Value := xSta02_In[3];
+        SelSwLoc.ST := tST;
+        SelSwRmt.Value := xSta02_In[2];
+        SelSwRmt.ST := tST;
+        PhaseFlt.Value := xSta02_In[1];
+        PhaseFlt.ST := tST;
+        ThrmFAct.Value := xSta02_In[0];
+        ThrmFAct.ST := tST;
+    END_IF;
+
+// Если в HWConfig входных байт больше или равно 4, то обрабатываем значение позиционера
+    IF InAmount >= 4 THEN
+        Pos_Out.Value := INT_TO_REAL(WORD_TO_INT(Sta04_In)) * (Pos_SclIn.High - Pos_SclIn.Low) / 1000.0 + Pos_SclIn.Low;
+        Pos_Out.ST := tST;
+        tER := Pos_Out.Value - SP.Value;
+        ER.ST := tST;
+        IF Feature.Bit2 = TRUE THEN
+            ER.Value := ABS(tER);
+        ELSE
+            ER.Value := tER;
+        END_IF;
+
+// Определяем импульсы по переднему и заднему фронту перехода через границу AH с учётом гистерезиса
+        sERAHFImp := (tER >= ER_AH_Lim) AND (NOT ER_AH_Act.Value);
+        sERAHRImp := (tER < ER_AH_Lim - ER_Hyst) AND ER_AH_Act.Value;
+
+// Устанавливаем и сбрасываем ER_AH_Act в зависимости от импульсов и заданных таймеров
+        IF ER_AH_En = TRUE THEN
+
+            IF sERAHFImp = TRUE THEN
+                IF ER_AH_DC = 0.0 THEN
+                    ER_AH_Act.Value := TRUE;
+                ELSE
+                    sERTimer := sERTimer + SampleTime;
+                    IF sERTimer >= ER_AH_DC THEN
+                        ER_AH_Act.Value := TRUE;
+                        sERTimer := 0.0;
+                    END_IF;
+                END_IF;
+            END_IF;
+    
+            IF sERAHRImp = TRUE THEN
+                IF ER_AH_DG = 0.0 THEN
+                    ER_AH_Act.Value := FALSE;
+                ELSE
+                    sERTimer := sERTimer + SampleTime;
+                    IF sERTimer >= ER_AH_DG THEN
+                        ER_AH_Act.Value := FALSE;
+                        sERTimer := 0.0;
+                    END_IF;
+                END_IF;
+            END_IF;    
+
+        ELSE
+            ER_AH_Act.Value := FALSE;
+        END_IF;
+
+// Определяем импульсы по переднему и заднему фронту перехода через границу AL с учётом гистерезиса
+        sERALFImp := (ER.Value <= ER_AL_Lim) AND (NOT ER_AL_Act.Value);
+        sERALRImp := (ER.Value > ER_AL_Lim + ER_Hyst) AND ER_AL_Act.Value;
+
+// Устанавливаем и сбрасываем ER_AL_Act в зависимости от импульсов и заданных таймеров
+        IF ER_AL_En = TRUE THEN
+
+            IF sERALFImp = TRUE THEN
+                IF ER_AL_DC = 0.0 THEN
+                    ER_AL_Act.Value := TRUE;
+                ELSE
+                    sERTimer := sERTimer + SampleTime;
+                    IF sERTimer >= ER_AL_DC THEN
+                        ER_AL_Act.Value := TRUE;
+                        sERTimer := 0.0;
+                    END_IF;
+                END_IF;
+            END_IF;
+
+            IF sERALRImp = TRUE THEN
+                IF ER_AL_DG = 0.0 THEN
+                    ER_AL_Act.Value := FALSE;
+                ELSE
+                    sERTimer := sERTimer + SampleTime;
+                    IF sERTimer >= ER_AL_DG THEN
+                        ER_AL_Act.Value := FALSE;
+                        sERTimer := 0.0;
+                    END_IF;
+                END_IF;
+            END_IF;    
+
+        ELSE
+            ER_AL_Act.Value := FALSE;
+        END_IF;
+    END_IF;
+
+// Если в HWConfig входных байт больше или равно 6, то обрабатываем пятый и шестой статусный байт
+    IF InAmount >= 6 THEN
+        DevOK.Value := xSta06_In[15];
+        DevOK.ST := tST;
+        Failure.Value := xSta06_In[14];
+        Failure.ST := tST;
+        FuncChk.Value := xSta06_In[13];
+        FuncChk.ST := tST;
+        OutOfSpec.Value := xSta06_In[12];
+        OutOfSpec.ST := tST;
+        Mnt_Req.Value := xSta06_In[11];
+        // Биты 10-8 дублируются в логических сигналах (байт 1, биты 7,6,3), поэтому не обрабатываем
+        RunLocOp.Value := xSta06_In[7];
+        RunLocOp.ST := tST;
+        RunRmtOp.Value := xSta06_In[6];
+        RunRmtOp.ST := tST;
+        HndWhOp.Value := xSta06_In[5];
+        HndWhOp.ST := tST;
+        ActrRun.Value := xSta06_In[4];
+        ActrRun.ST := tST;
+        // Бит 3 не используется
+        StrStpM.Value := xSta06_In[2];
+        StrStpM.ST := tST;
+        InmdPos.Value := xSta06_In[1];
+        InmdPos.ST := tST;
+        OpPauseAct.Value := xSta06_In[0];
+        OpPauseAct.ST := tST;
+    END_IF;
+
+// Если в HWConfig входных байт больше или равно 8, то обрабатываем седьмой и восьмой статусный байт
+    IF InAmount >= 8 THEN
+        IntmedP8.Value := xSta08_In[15];
+        IntmedP8.ST := tST;
+        IntmedP7.Value := xSta08_In[14];
+        IntmedP7.ST := tST;
+        IntmedP6.Value := xSta08_In[13];
+        IntmedP6.ST := tST;
+        IntmedP5.Value := xSta08_In[12];
+        IntmedP5.ST := tST;
+        IntmedP4.Value := xSta08_In[11];
+        IntmedP4.ST := tST;
+        IntmedP3.Value := xSta08_In[10];
+        IntmedP3.ST := tST;
+        IntmedP2.Value := xSta08_In[9];
+        IntmedP2.ST := tST;
+        IntmedP1.Value := xSta08_In[8];
+        IntmedP1.ST := tST;
+        // Биты 7 и 6 не используются
+        DIn6_Act.Value := xSta08_In[5];
+        DIn6_Act.ST := tST;
+        DIn5_Act.Value := xSta08_In[4];
+        DIn5_Act.ST := tST;
+        DIn4_Act.Value := xSta08_In[3];
+        DIn4_Act.ST := tST;
+        DIn3_Act.Value := xSta08_In[2];
+        DIn3_Act.ST := tST;
+        DIn2_Act.Value := xSta08_In[1];
+        DIn2_Act.ST := tST;
+        DIn1_Act.Value := xSta08_In[0];
+        DIn1_Act.ST := tST;
+    END_IF;
+
+// Если в HWConfig входных байт больше или равно 12, то обрабатываем значения крут.момента и аналог.входа №1
+// Крутящий момент передаётся в виде от 0 до 1000, где 0 = -127%, 500 = 0%, 1000 = +127%.
+    IF InAmount >= 12 THEN
+        tTorq := (INT_TO_REAL(WORD_TO_INT(wSta12_In[1])) - 500.0);
+        IF Feature.Bit1 = FALSE THEN                                // 0 = крут.момент нужен в процентах
+            Torq_Out.Value := tTorq / 3.937008;                     // = 500 / 127
+        ELSE
+            Torq_Out.Value := tTorq / 393.700787;                   // крут.момент нужен в относит.величинах
+        END_IF;
+        Torq_Out.ST := tST;
+        AIn1_Out.Value := INT_TO_REAL(WORD_TO_INT(wSta12_In[0])) * (AIn1_SclIn.High - AIn1_SclIn.Low) / 1000.0 + AIn1_SclIn.Low;
+        AIn1_Out.ST := tST;
+        AIn1_SclOut := Ain1_SclIn;
+    END_IF;
+
+// Если в HWConfig входных байт больше или равно 16, то обрабатываем 13й, 14й, 15й и 16й статусные байты
+    IF InAmount >= 16 THEN
+        IOIface_Act.Value := xSta16_In[31];
+        IOIface_Act.ST := tST;
+        FbFailSt.Value := xSta16_In[30];
+        FbFailSt.ST := tST;
+        EmcyBh_Act.Value := xSta16_In[29];
+        EmcyBh_Act.ST := tST;
+        EmcyStp_Act.Value := xSta16_In[28];
+        EmcyStp_Act.ST := tST;
+        LocStp_Act.Value := xSta16_In[27];
+        LocStp_Act.ST := tST;
+        Intlk_Act.Value := xSta16_In[26];
+        Intlk_Act.ST := tST;
+        SwNotRmt.Value := xSta16_In[25];
+        SwNotRmt.ST := tST;
+        WrOpCmd.Value := xSta16_In[24];
+        WrOpCmd.ST := tST;
+        HndWhl_Act.Value := xSta16_In[23];
+        HndWhl_Act.ST := tST;
+        Service_Act.Value := xSta16_In[22];
+        Service_Act.ST := tST;
+        PVST_Act.Value := xSta16_In[21];
+        PVST_Act.ST := tST;
+        BypIntl_Act.Value := xSta16_In[20];
+        BypIntl_Act.ST := tST;
+        DisMod_Act.Value := xSta16_In[19];
+        DisMod_Act.ST := tST;
+        SILFn_Act.Value := xSta16_In[18];
+        SILFn_Act.ST := tST;
+        // Биты 17-16 не используются
+        No_react.Value := xSta16_In[15];
+        No_react.ST := tST;
+        Int_Error.Value := xSta16_In[14];
+        Int_Error.ST := tST;
+        TrCls_Flt.Value := xSta16_In[13];
+        TrCls_Flt.ST := tST;
+        TrOpn_Flt.Value := xSta16_In[12];
+        TrOpn_Flt.ST := tST;
+        // Биты 11-10 дублируются в сигналах привода (байт 2, биты 1-0), поэтому не обрабатываем
+        Mains_Qual.Value := xSta16_In[9];
+        Mains_Qual.ST := tST;
+        Cfg_Err.Value := xSta16_In[8];
+        Cfg_Err.ST := tST;
+        WrPhSeq.Value := xSta16_In[7];
+        WrPhSeq.ST := tST;
+        CfgErrRmt.Value := xSta16_In[6];
+        CfgErrRmt.ST := tST;
+        //
+    END_IF;
+
+// Если в HWConfig входных байт больше или равно 20, то обрабатываем 17й, 18й, 19й и 20й статусные байты
+    IF InAmount >= 20 THEN
+        WrnNoRct.Value := xSta20_In[31];
+        WrnNoRct.ST := tST;
+        SIL_Fault.Value := xSta20_In[30];
+        SIL_Fault.ST := tST;
+        TrqWrOpn.Value := xSta20_In[29];
+        TrqWrOpn.ST := tST;
+        TrqWrCls.Value := xSta20_In[28];
+        TrqWrCls.ST := tST;
+        // Биты 27-24 не используются
+        Cfg_Warn.Value := xSta20_In[23];
+        Cfg_Warn.ST := tST;
+        RTC_NSet.Value := xSta20_In[22];
+        RTC_NSet.ST := tST;
+        RTC_Cell.Value := xSta20_In[21];
+        RTC_Cell.ST := tST;
+        // Бит 20 не используется
+        Extrn_24VDC.Value := xSta20_In[19];
+        Extrn_24VDC.ST := tST;
+        // Биты 18-17 не используются
+        Ctrl_Tmp.Value := xSta20_In[16];
+        Ctrl_Tmp.ST := tST;
+        WrnOpTime.Value := xSta20_In[15];
+        WrnOpTime.ST := tST;
+        WrnOnTiRn.Value := xSta20_In[14];
+        WrnOnTiRn.ST := tST;
+        WrnOnTiSt.Value := xSta20_In[13];
+        WrnOnTiSt.ST := tST;
+        Int_Warn.Value := xSta20_In[12];
+        Int_Warn.ST := tST;
+        AIn1Wrn.Value := xSta20_In[11];
+        AIn1Wrn.ST := tST;
+        AIn2Wrn.Value := xSta20_In[10];
+        AIn2Wrn.ST := tST;
+        FOCWrnLoop.Value := xSta20_In[9];
+        FOCWrnLoop.ST := tST;
+        FOCWrnBdg.Value := xSta20_In[8];
+        FOCWrnBdg.ST := tST;
+        PVST_Err.Value := xSta20_In[7];
+        PVST_Err.ST := tST;
+        PVST_Abrt.Value := xSta20_In[6];
+        PVST_Abrt.ST := tST;
+        FltBhvAct.Value := xSta20_In[5];
+        FltBhvAct.ST := tST;
+        WrnFOCCon.Value := xSta20_In[4];
+        WrnFOCCon.ST := tST;
+        PVST_Req.Value := xSta20_In[3];
+        PVST_Req.ST := tST;
+        WrnSPPos.Value := xSta20_In[2];
+        WrnSPPos.ST := tST;
+        // Биты 1-0 не используются
+    END_IF;
+
+// Если в HWConfig входных байт больше или равно 22, то обрабатываем значение аналог.входа №2
+    IF InAmount >= 22 THEN
+        AIn2_Out.Value := INT_TO_REAL(WORD_TO_INT(Sta22_In)) * (AIn2_SclIn.High - AIn2_SclIn.Low) / 1000.0 + AIn2_SclIn.Low;
+        AIn2_Out.ST := tST;
+        AIn2_SclOut := Ain2_SclIn;
+    END_IF;
+
+// Если в HWConfig входных байт больше или равно 14, то обрабатываем 23й и 24й статусные байты
+    IF InAmount >= 24 THEN
+        // Бит 15 дублируется в логических сигналах (байт 1, бит 7), поэтому не обрабатываем
+        // Биты 14-5 не используются
+        Mnt_Intrv.Value := xSta24_In[4];
+        Mnt_Intrv.ST := tST;
+        Mnt_Contact.Value := xSta24_In[3];
+        Mnt_Contact.ST := tST;
+        Mnt_Lubr.Value := xSta24_In[2];
+        Mnt_Lubr.ST := tST;
+        Mnt_Seals.Value := xSta24_In[1];
+        Mnt_Seals.ST := tST;
+        Mnt_Mech.Value := xSta24_In[0];
+        Mnt_Mech.ST := tST;
+    END_IF;
+
+// Байты 25-28 не обрабатываем, т.к. все их сигналы дублируются в других местах
+
+// Если в HWConfig входных байт больше или равно 32, то обрабатываем 32й статусный байт
+    IF InAmount >= 32 THEN
+        // Биты 31-30 не используются
+        // Биты 29-24 дублируются в сигналах готовности в дистанции (байты 13-14), поэтому не обрабатываем
+        // Биты 23-16 не используются
+        Ch2_Actvy.Value := xSta32_In[15];
+        Ch2_Actvy.ST := tST;
+        Ch1_Actvy.Value := xSta32_In[14];
+        Ch1_Actvy.ST := tST;
+        Ch2_FailSt.Value := xSta32_In[13];
+        Ch2_FailSt.ST := tST;
+        Ch1_FailSt.Value := xSta32_In[12];
+        Ch1_FailSt.ST := tST;
+        Ch2_DataEx.Value := xSta32_In[11];
+        Ch2_DataEx.ST := tST;
+        Ch1_DataEx.Value := xSta32_In[10];
+        Ch1_DataEx.ST := tST;
+        Ch2_Act.Value := xSta32_In[9];
+        Ch2_Act.ST := tST;
+        Ch1_Act.Value := xSta32_In[8];
+        Ch1_Act.ST := tST;
+        // Биты 7-4 не используются
+        // Бит 3 дублируется в сигналах готовности к дистанции (байт 14, бит 2), поэтому не обрабатываем
+        // Бит 2 дублируется в сигналах предупреждений (байт 17, бит 6), поэтому не обрабатываем
+        Safe_Stop.Value := xSta32_In[1];
+        Safe_Stop.ST := tST;
+        Safe_ESD.Value := xSta32_In[0];
+        Safe_ESD.ST := tST;
+    END_IF;
+
+// Байты 33-40 не используются, поэтому не обрабатываем
+
+// Устанавливаем биты в 1м командном байте
+    xCmd01_Out[7] := ResCmd07.Value;
+    xCmd01_Out[6] := ResCmd06.Value;
+    xCmd01_Out[5] := ResCmd05.Value;
+    xCmd01_Out[4] := ResCmd04.Value;
+    xCmd01_Out[3] := Reset.Value;
+    xCmd01_Out[2] := Run_SP.Value AND NOT Local_En.Value;
+    xCmd01_Out[1] := Close.Value AND Close_En.Value AND NOT Local_En.Value;
+    xCmd01_Out[0] := Open.Value AND Open_En.Value AND NOT Local_En.Value;
+
+(* Весь 2й командный байт является резервным
+    IF OutAmount >=2 THEN
+        xCmd02[0] := ResCmd08.Value;
+        xCmd02[1] := ResCmd09.Value;
+        xCmd02[2] := ResCmd10.Value;
+        xCmd02[3] := ResCmd11.Value;
+        xCmd02[4] := ResCmd12.Value;
+        xCmd02[5] := ResCmd13.Value;
+        xCmd02[6] := ResCmd14.Value;
+        xCmd02[7] := ResCmd15.Value;
+    END_IF;
+*)
+
+// Если в HWConfig выходных байт больше или равно 4, то обсчитываем и записываем значение уставки.
+// В AUMA шкала 0-1000, и сигнал не должен выходить за эти рамки.
+    IF OutAmount >= 4 THEN
+        tReal := (SP.Value - SP_Scale.Low) / (SP_Scale.High - SP_Scale.Low) * 1000.0;
+        IF tReal < 0.0 THEN
+            tReal := 0.0;
+        END_IF;
+        IF tReal > 1000.0 THEN
+            tReal := 1000.0;
+        END_IF;
+        Cmd04_Out := INT_TO_WORD(REAL_TO_INT(tReal));
+    END_IF;
+
+// Если в HWConfig выходных байт больше или равно 6, то записываем командные байты 5 и 6
+    IF OutAmount >= 6 THEN
+        xCmd06_Out[15] := PVST.Value;
+        xCmd06_Out[14] := FbEmcy.Value;
+        xCmd06_Out[13] := FbCh2.Value;
+        xCmd06_Out[12] := FbCh1.Value;
+        xCmd06_Out[11] := FALSE;                // Не используется
+        xCmd06_Out[10] := Close_En.Value;
+        xCmd06_Out[9] := Open_En.Value;
+        xCmd06_Out[8] := Local_En.Value;
+        xCmd06_Out[7] := FbImP8.Value;   
+        xCmd06_Out[6] := FbImP7.Value;
+        xCmd06_Out[5] := FbImP6.Value;
+        xCmd06_Out[4] := FbImP5.Value;
+        xCmd06_Out[3] := FbImP4.Value;
+        xCmd06_Out[2] := FbImP3.Value;
+        xCmd06_Out[1] := FbImP2.Value;
+        xCmd06_Out[0] := FbImP1.Value;
+    END_IF;
+
+// Если в HWConfig выходных байт больше или равно 8, то обсчитываем и записываем значение уставки.
+    IF OutAmount >= 8 THEN
+        xCmd08_Out[15] := FALSE;                // Не используется
+        xCmd08_Out[14] := FALSE;                // Не используется
+        xCmd08_Out[13] := FALSE;                // Не используется
+        xCmd08_Out[12] := FALSE;                // Не используется
+        xCmd08_Out[11] := FALSE;                // Резервный
+        xCmd08_Out[10] := FALSE;                // Резервный
+        xCmd08_Out[9] := FALSE;                 // Резервный
+        xCmd08_Out[8] := FALSE;                 // Резервный
+        xCmd08_Out[7] := FALSE;                 // Резервный
+        xCmd08_Out[6] := FALSE;                 // Резервный
+        xCmd08_Out[5] := DOut6_In.Value;
+        xCmd08_Out[4] := DOut5_In.Value;
+        xCmd08_Out[3] := DOut4_In.Value;
+        xCmd08_Out[2] := DOut3_In.Value;
+        xCmd08_Out[1] := DOut2_In.Value;
+        xCmd08_Out[0] := DOut1_In.Value;
+    END_IF;
+
+    IF OutAmount >= 12 THEN
+        tReal := (ActPV_In.Value - ActPV_Scale.Low) / (ActPV_Scale.High - ActPV_Scale.Low) * 1000.0;
+        IF tReal < 0.0 THEN
+            tReal := 0.0;
+        END_IF;
+        IF tReal > 1000.0 THEN
+            tReal := 1000.0;
+        END_IF;
+        wCmd12_Out[0] := INT_TO_WORD(REAL_TO_INT(tReal));
+        tReal := (AOut1_In.Value - AOut1_Scale.Low) / (AOut1_Scale.High - AOut1_Scale.Low) * 1000.0;
+        IF tReal < 0.0 THEN
+            tReal := 0.0;
+        END_IF;
+        IF tReal > 1000.0 THEN
+            tReal := 1000.0;
+        END_IF;
+        wCmd12_Out[1] := INT_TO_WORD(REAL_TO_INT(tReal));
+    END_IF;
+
+    IF OutAmount >= 16 THEN
+        tReal := (AOut2_In.Value - AOut2_Scale.Low) / (AOut2_Scale.High - AOut2_Scale.Low) * 1000.0;
+        IF tReal < 0.0 THEN
+            tReal := 0.0;
+        END_IF;
+        IF tReal > 1000.0 THEN
+            tReal := 1000.0;
+        END_IF;
+        wCmd16_Out[0] := INT_TO_WORD(REAL_TO_INT(tReal));
+        wCmd16_Out[1] := W#16#0000;
+    END_IF;
+
+// Байты 15-26 резервные, поэтому не обрабатываем
+
+    tAllMsgEn := NOT MsgLock.Value;
+
+    ALARM_8P_01(EN_R   := tAllMsgEn,
+                ID     := W#16#EEEE,
+                EV_ID  := MsgEvId01,
+                SIG_1  := MsgEn.Opened AND Opened.Value,
+                SIG_2  := MsgEn.Closed AND Closed.Value,
+                SIG_3  := MsgEn.SP_Reached AND SP_Reached.Value,
+                SIG_4  := MsgEn.NotRdyRmt AND NotRdyRmt.Value,
+                SIG_5  := MsgEn.Opening AND Opening.Value,
+                SIG_6  := MsgEn.Closing AND Closing.Value,
+                SIG_7  := MsgEn.WarnAct AND WarnAct.Value,
+                SIG_8  := MsgEn.FaultAct AND FaultAct.Value,
+                SD_1   := ExtVal01,
+                SD_2   := ExtVal02,
+                SD_3   := SP.Value,
+                SD_4   := ActPV_In.Value,
+                SD_5   := AOut1_In.Value,
+                SD_6   := AOut2_In.Value,
+                SD_7   := Pos_Out.Value,
+                SD_8   := Torq_Out.Value,
+                SD_9   := AIn1_Out.Value,
+                SD_10  := AIn2_Out.Value
+               );
+    MsgErr01 := ALARM_8P_01.ERROR;
+    MsgStat01 := ALARM_8P_01.STATUS;
+    MsgAckn01 := ALARM_8P_01.ACK_STATE;
+
+    ALARM_8P_02(EN_R   := tAllMsgEn,
+                ID     := W#16#EEEE,
+                EV_ID  := MsgEvId02,
+                SIG_1  := MsgEn.ThrmFAct AND ThrmFAct.Value,
+                SIG_2  := MsgEn.PhaseFlt AND PhaseFlt.Value,
+                SIG_3  := MsgEn.SelSwRmt AND SelSwRmt.Value,
+                SIG_4  := MsgEn.SelSwLoc AND SelSwLoc.Value,
+                SIG_5  := MsgEn.LSOpnAct AND LSOpnAct.Value,
+                SIG_6  := MsgEn.LSClsAct AND LSClsAct.Value,
+                SIG_7  := MsgEn.TrOpnAct AND TrOpnAct.Value,
+                SIG_8  := MsgEn.TrClsAct AND TrClsAct.Value,
+                SD_1   := ExtVal01,
+                SD_2   := ExtVal02,
+                SD_3   := SP.Value,
+                SD_4   := ActPV_In.Value,
+                SD_5   := AOut1_In.Value,
+                SD_6   := AOut2_In.Value,
+                SD_7   := Pos_Out.Value,
+                SD_8   := Torq_Out.Value,
+                SD_9   := AIn1_Out.Value,
+                SD_10  := AIn2_Out.Value
+               );
+    MsgErr02 := ALARM_8P_02.ERROR;
+    MsgStat02 := ALARM_8P_02.STATUS;
+    MsgAckn02 := ALARM_8P_02.ACK_STATE;
+
+    ALARM_8P_03(EN_R   := tAllMsgEn,
+                ID     := W#16#EEEE,
+                EV_ID  := MsgEvId03,
+                SIG_1  := MsgEn.Mnt_Req AND Mnt_Req.Value,
+                SIG_2  := MsgEn.OutOfSpec AND OutOfSpec.Value,
+                SIG_3  := MsgEn.FuncChk AND FuncChk.Value,
+                SIG_4  := MsgEn.Failure AND Failure.Value,
+                SIG_5  := MsgEn.OpPauseAct AND OpPauseAct.Value,
+                SIG_6  := MsgEn.InmdPos AND InmdPos.Value,
+                SIG_7  := MsgEn.StrStpM AND StrStpM.Value,
+                SIG_8  := MsgEn.ActrRun AND ActrRun.Value,
+                SD_1   := ExtVal01,
+                SD_2   := ExtVal02,
+                SD_3   := SP.Value,
+                SD_4   := ActPV_In.Value,
+                SD_5   := AOut1_In.Value,
+                SD_6   := AOut2_In.Value,
+                SD_7   := Pos_Out.Value,
+                SD_8   := Torq_Out.Value,
+                SD_9   := AIn1_Out.Value,
+                SD_10  := AIn2_Out.Value
+               );
+    MsgErr03 := ALARM_8P_03.ERROR;
+    MsgStat03 := ALARM_8P_03.STATUS;
+    MsgAckn03 := ALARM_8P_03.ACK_STATE;
+    
+    ALARM_8P_04(EN_R   := tAllMsgEn,
+                ID     := W#16#EEEE,
+                EV_ID  := MsgEvId04,
+                SIG_1  := MsgEn.HndWhOp AND HndWhOp.Value,
+                SIG_2  := MsgEn.RunRmtOp AND RunRmtOp.Value,
+                SIG_3  := MsgEn.RunLocOp AND RunLocOp.Value,
+                SIG_4  := MsgEn.IntmedP1 AND IntmedP1.Value,
+                SIG_5  := MsgEn.IntmedP2 AND IntmedP2.Value,
+                SIG_6  := MsgEn.IntmedP3 AND IntmedP3.Value,
+                SIG_7  := MsgEn.IntmedP4 AND IntmedP4.Value,
+                SIG_8  := MsgEn.IntmedP5 AND IntmedP5.Value,
+                SD_1   := ExtVal01,
+                SD_2   := ExtVal02,
+                SD_3   := SP.Value,
+                SD_4   := ActPV_In.Value,
+                SD_5   := AOut1_In.Value,
+                SD_6   := AOut2_In.Value,
+                SD_7   := Pos_Out.Value,
+                SD_8   := Torq_Out.Value,
+                SD_9   := AIn1_Out.Value,
+                SD_10  := AIn2_Out.Value
+               );
+    MsgErr04 := ALARM_8P_04.ERROR;
+    MsgStat04 := ALARM_8P_04.STATUS;
+    MsgAckn04 := ALARM_8P_04.ACK_STATE;
+    
+    ALARM_8P_05(EN_R   := tAllMsgEn,
+                ID     := W#16#EEEE,
+                EV_ID  := MsgEvId05,
+                SIG_1  := MsgEn.IntmedP6 AND IntmedP6.Value,
+                SIG_2  := MsgEn.IntmedP7 AND IntmedP7.Value,
+                SIG_3  := MsgEn.IntmedP8 AND IntmedP8.Value,
+                SIG_4  := MsgEn.WrOpCmd AND WrOpCmd.Value,
+                SIG_5  := MsgEn.SwNotRmt AND SwNotRmt.Value,
+                SIG_6  := MsgEn.Intlk_Act AND Intlk_Act.Value,
+                SIG_7  := MsgEn.LocStp_Act AND LocStp_Act.Value,
+                SIG_8  := MsgEn.EmcyStp_Act AND EmcyStp_Act.Value,
+                SD_1   := ExtVal01,
+                SD_2   := ExtVal02,
+                SD_3   := SP.Value,
+                SD_4   := ActPV_In.Value,
+                SD_5   := AOut1_In.Value,
+                SD_6   := AOut2_In.Value,
+                SD_7   := Pos_Out.Value,
+                SD_8   := Torq_Out.Value,
+                SD_9   := AIn1_Out.Value,
+                SD_10  := AIn2_Out.Value
+               );
+    MsgErr05 := ALARM_8P_05.ERROR;
+    MsgStat05 := ALARM_8P_05.STATUS;
+    MsgAckn05 := ALARM_8P_05.ACK_STATE;
+
+    ALARM_8P_06(EN_R   := tAllMsgEn,
+                ID     := W#16#EEEE,
+                EV_ID  := MsgEvId06,
+                SIG_1  := MsgEn.EmcyBh_Act AND EmcyBh_Act.Value,
+                SIG_2  := MsgEn.FbFailSt AND FbFailSt.Value,
+                SIG_3  := MsgEn.IOIface_Act AND IOIface_Act.Value,
+                SIG_4  := MsgEn.SILFn_Act AND SILFn_Act.Value,
+                SIG_5  := MsgEn.DisMod_Act AND DisMod_Act.Value,
+                SIG_6  := MsgEn.BypIntl_Act AND BypIntl_Act.Value,
+                SIG_7  := MsgEn.PVST_Act AND PVST_Act.Value,
+                SIG_8  := MsgEn.Service_Act AND Service_Act.Value,
+                SD_1   := ExtVal01,
+                SD_2   := ExtVal02,
+                SD_3   := SP.Value,
+                SD_4   := ActPV_In.Value,
+                SD_5   := AOut1_In.Value,
+                SD_6   := AOut2_In.Value,
+                SD_7   := Pos_Out.Value,
+                SD_8   := Torq_Out.Value,
+                SD_9   := AIn1_Out.Value,
+                SD_10  := AIn2_Out.Value
+               );
+    MsgErr06 := ALARM_8P_06.ERROR;
+    MsgStat06 := ALARM_8P_06.STATUS;
+    MsgAckn06 := ALARM_8P_06.ACK_STATE;
+
+    ALARM_8P_07(EN_R   := tAllMsgEn,
+                ID     := W#16#EEEE,
+                EV_ID  := MsgEvId07,
+                SIG_1  := MsgEn.HndWhl_Act AND HndWhl_Act.Value,
+                SIG_2  := MsgEn.Cfg_Err AND Cfg_Err.Value,
+                SIG_3  := MsgEn.Mains_Qual AND Mains_Qual.Value,
+                SIG_4  := MsgEn.TrOpn_Flt AND TrOpn_Flt.Value,
+                SIG_5  := MsgEn.TrCls_Flt AND TrCls_Flt.Value,
+                SIG_6  := MsgEn.Int_Error AND Int_Error.Value,
+                SIG_7  := MsgEn.No_react AND No_react.Value,
+                SIG_8  := MsgEn.CfgErrRmt AND CfgErrRmt.Value,
+                SD_1   := ExtVal01,
+                SD_2   := ExtVal02,
+                SD_3   := SP.Value,
+                SD_4   := ActPV_In.Value,
+                SD_5   := AOut1_In.Value,
+                SD_6   := AOut2_In.Value,
+                SD_7   := Pos_Out.Value,
+                SD_8   := Torq_Out.Value,
+                SD_9   := AIn1_Out.Value,
+                SD_10  := AIn2_Out.Value
+               );
+    MsgErr07 := ALARM_8P_07.ERROR;
+    MsgStat07 := ALARM_8P_07.STATUS;
+    MsgAckn07 := ALARM_8P_07.ACK_STATE;
+
+    ALARM_8P_08(EN_R   := tAllMsgEn,
+                ID     := W#16#EEEE,
+                EV_ID  := MsgEvId08,
+                SIG_1  := MsgEn.WrPhSeq AND WrPhSeq.Value,
+                SIG_2  := MsgEn.TrqWrCls AND TrqWrCls.Value,
+                SIG_3  := MsgEn.TrqWrOpn AND TrqWrOpn.Value,
+                SIG_4  := MsgEn.WrnNoRct AND WrnNoRct.Value,
+                SIG_5  := MsgEn.Ctrl_Tmp AND Ctrl_Tmp.Value,
+                SIG_6  := MsgEn.Extrn_24VDC AND Extrn_24VDC.Value,
+                SIG_7  := MsgEn.RTC_Cell AND RTC_Cell.Value,
+                SIG_8  := MsgEn.RTC_NSet AND RTC_NSet.Value,
+                SD_1   := ExtVal01,
+                SD_2   := ExtVal02,
+                SD_3   := SP.Value,
+                SD_4   := ActPV_In.Value,
+                SD_5   := AOut1_In.Value,
+                SD_6   := AOut2_In.Value,
+                SD_7   := Pos_Out.Value,
+                SD_8   := Torq_Out.Value,
+                SD_9   := AIn1_Out.Value,
+                SD_10  := AIn2_Out.Value
+               );
+    MsgErr08 := ALARM_8P_08.ERROR;
+    MsgStat08 := ALARM_8P_08.STATUS;
+    MsgAckn08 := ALARM_8P_08.ACK_STATE;
+    
+    ALARM_8P_09(EN_R   := tAllMsgEn,
+                ID     := W#16#EEEE,
+                EV_ID  := MsgEvId09,
+                SIG_1  := MsgEn.Cfg_Warn AND Cfg_Warn.Value,
+                SIG_2  := MsgEn.FOCWrnBdg AND FOCWrnBdg.Value,
+                SIG_3  := MsgEn.FOCWrnLoop AND FOCWrnLoop.Value,
+                SIG_4  := MsgEn.AIn2Wrn AND AIn2Wrn.Value,
+                SIG_5  := MsgEn.AIn1Wrn AND AIn1Wrn.Value,
+                SIG_6  := MsgEn.Int_Warn AND Int_Warn.Value,
+                SIG_7  := MsgEn.WrnOnTiSt AND WrnOnTiSt.Value,
+                SIG_8  := MsgEn.WrnOnTiRn AND WrnOnTiRn.Value,
+                SD_1   := ExtVal01,
+                SD_2   := ExtVal02,
+                SD_3   := SP.Value,
+                SD_4   := ActPV_In.Value,
+                SD_5   := AOut1_In.Value,
+                SD_6   := AOut2_In.Value,
+                SD_7   := Pos_Out.Value,
+                SD_8   := Torq_Out.Value,
+                SD_9   := AIn1_Out.Value,
+                SD_10  := AIn2_Out.Value
+               );
+    MsgErr09 := ALARM_8P_09.ERROR;
+    MsgStat09 := ALARM_8P_09.STATUS;
+    MsgAckn09 := ALARM_8P_09.ACK_STATE;
+
+    ALARM_8P_10(EN_R   := tAllMsgEn,
+                ID     := W#16#EEEE,
+                EV_ID  := MsgEvId10,
+                SIG_1  := MsgEn.WrnOpTime AND WrnOpTime.Value,
+                SIG_2  := MsgEn.WrnSPPos AND WrnSPPos.Value,
+                SIG_3  := MsgEn.PVST_Req AND PVST_Req.Value,
+                SIG_4  := MsgEn.WrnFOCCon AND WrnFOCCon.Value,
+                SIG_5  := MsgEn.FltBhvAct AND FltBhvAct.Value,
+                SIG_6  := MsgEn.PVST_Abrt AND PVST_Abrt.Value,
+                SIG_7  := MsgEn.PVST_Err AND PVST_Err.Value,
+                SIG_8  := MsgEn.Mnt_Mech AND Mnt_Mech.Value,
+                SD_1   := ExtVal01,
+                SD_2   := ExtVal02,
+                SD_3   := SP.Value,
+                SD_4   := ActPV_In.Value,
+                SD_5   := AOut1_In.Value,
+                SD_6   := AOut2_In.Value,
+                SD_7   := Pos_Out.Value,
+                SD_8   := Torq_Out.Value,
+                SD_9   := AIn1_Out.Value,
+                SD_10  := AIn2_Out.Value
+               );
+    MsgErr10 := ALARM_8P_10.ERROR;
+    MsgStat10 := ALARM_8P_10.STATUS;
+    MsgAckn10 := ALARM_8P_10.ACK_STATE;
+
+    ALARM_8P_11(EN_R   := tAllMsgEn,
+                ID     := W#16#EEEE,
+                EV_ID  := MsgEvId11,
+                SIG_1  := MsgEn.Mnt_Seals AND Mnt_Seals.Value,
+                SIG_2  := MsgEn.Mnt_Lubr AND Mnt_Lubr.Value,
+                SIG_3  := MsgEn.Mnt_Contact AND Mnt_Contact.Value,
+                SIG_4  := MsgEn.Mnt_Intrv AND Mnt_Intrv.Value,
+                SIG_5  := MsgEn.Ch1_FailSt AND Ch1_FailSt.Value,
+                SIG_6  := MsgEn.Ch2_FailSt AND Ch2_FailSt.Value,
+                SIG_7  := MsgEn.Safe_ESD AND Safe_ESD.Value,
+                SIG_8  := MsgEn.Safe_Stop AND Safe_Stop.Value,
+                SD_1   := ExtVal01,
+                SD_2   := ExtVal02,
+                SD_3   := SP.Value,
+                SD_4   := ActPV_In.Value,
+                SD_5   := AOut1_In.Value,
+                SD_6   := AOut2_In.Value,
+                SD_7   := Pos_Out.Value,
+                SD_8   := Torq_Out.Value,
+                SD_9   := AIn1_Out.Value,
+                SD_10  := AIn2_Out.Value
+               );
+    MsgErr11 := ALARM_8P_11.ERROR;
+    MsgStat11 := ALARM_8P_11.STATUS;
+    MsgAckn11 := ALARM_8P_11.ACK_STATE;
+
+    ALARM_8P_12(EN_R   := tAllMsgEn,
+                ID     := W#16#EEEE,
+                EV_ID  := MsgEvId12,
+                SIG_1  := MsgEn.SIL_Fault AND SIL_Fault.Value,
+                SIG_2  := MsgEn.Comm_Fault AND RackF_In,
+                SD_1   := ExtVal01,
+                SD_2   := ExtVal02,
+                SD_3   := SP.Value,
+                SD_4   := ActPV_In.Value,
+                SD_5   := AOut1_In.Value,
+                SD_6   := AOut2_In.Value,
+                SD_7   := Pos_Out.Value,
+                SD_8   := Torq_Out.Value,
+                SD_9   := AIn1_Out.Value,
+                SD_10  := AIn2_Out.Value
+               );
+    MsgErr12 := ALARM_8P_12.ERROR;
+    MsgStat12 := ALARM_8P_12.STATUS;
+    MsgAckn12 := ALARM_8P_12.ACK_STATE;
+
+    tDW2Byte[0] := Sta01_In;
+    tDW2Byte[1] := Sta02_In;
+    tDW2Word[1] := Sta06_In;
+    Status1 := tDWord;
+    
+    tDW2Word[0] := Sta08_In;
+    tDW2Word[1] := wSta16_In[0];
+    Status2 := tDWord;
+
+    tDW2Word[0] := W#16#0000;
+    tDW2Word[1] := wSta16_In[1];
+    Status3 := tDWord;
+    
+    Status4 := Sta20_In;
+    
+    tDW2Word[0] := Sta24_In;
+    tDW2Word[1] := wSta32_In[1];
+    Status5 := tDWord;
+
+//    Status6 := tdwFeature;
+    Status6 := DW#16#00000000;
+
+END_FUNCTION_BLOCK
+
