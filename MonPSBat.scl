@@ -1,0 +1,295 @@
+FUNCTION_BLOCK MonPSBat { S7_m_c := 'true' }
+TITLE = 'PS batteries monitoring'
+VERSION: '0.4'
+AUTHOR: RoVRy
+NAME: MonPSBat
+FAMILY: SGOK
+
+KNOW_HOW_PROTECT
+
+VAR_INPUT
+
+    CPU_DIAG:STRUCT    
+        H_MODE:BOOL;                                                        //1= H-System
+        V1_MODE:BOOL;                                                       //1= CPU DP V1 Mode
+        CPU_ERR0:BOOL;                                                      //1=CPU Error in Rack0
+        CPU_ERR1:BOOL;                                                      //1=CPU Error in Rack1
+        OB1_TIME:DINT;                                                      //OB1_TIME_TCK
+        OB_S:STRUCT    
+            NUM_CNT:INT;                                                    //Counter Startinfo OB_NR
+            NUM_01:BYTE;                                                    //Startinfo OB_NO
+            NUM_02:BYTE;                                                    //Startinfo OB_NO
+            NUM_03:BYTE;                                                    //Startinfo OB_NO
+            NUM_04:BYTE;                                                    //Startinfo OB_NO
+            NUM_05:BYTE;                                                    //Startinfo OB_NO
+            NUM_06:BYTE;                                                    //Startinfo OB_NO
+            NUM_07:BYTE;                                                    //Startinfo OB_NO
+            NUM_08:BYTE;                                                    //Startinfo OB_NO
+            NUM_09:BYTE;                                                    //Startinfo OB_NO
+            NUM_10:BYTE;                                                    //Startinfo OB_NO
+            NUM_11:BYTE;                                                    //Startinfo OB_NO
+            NUM_12:BYTE;                                                    //Startinfo OB_NO
+            NUM_13:BYTE;                                                    //Startinfo OB_NO
+            NUM_14:BYTE;                                                    //Startinfo OB_NO
+            NUM_15:BYTE;                                                    //Startinfo OB_NO
+            NUM_16:BYTE;                                                    //Startinfo OB_NO
+        END_STRUCT;   
+        OB_72:STRUCT    
+            TOP_SI:STRUCT    
+                EV_CLASS:BYTE;                                              //Event class
+                EV_NUM:BYTE;                                                //Event number
+                PRIORITY:BYTE;                                              //Priority
+                NUM:BYTE;                                                   //OB-Number
+                TYP2_3:BYTE;                                                //Reserved
+                TYP1:BYTE;                                                  //Reserved
+                ZI1:WORD;                                                   //Reserved
+                ZI2_3:DWORD;                                                //Reserved
+            END_STRUCT;   
+        END_STRUCT;   
+        OB_70:STRUCT    
+            TOP_SI:STRUCT    
+                EV_CLASS:BYTE;                                              //Event class
+                EV_NUM:BYTE;                                                //Event number
+                PRIORITY:BYTE;                                              //Priority
+                NUM:BYTE;                                                   //OB-Number
+                TYP2_3:BYTE;                                                //Reserved
+                TYP1:BYTE;                                                  //Reserved
+                ZI1:WORD;                                                   //Reserved
+                ZI2_3:DWORD;                                                //Reserved
+            END_STRUCT;   
+            SUBNET:BYTE;                                                    //SUBNET ID
+            RACK:BYTE;                                                      //Rack Number
+            STATUS:DWORD;                                                   //Status SFB 54
+        END_STRUCT;   
+        OB_82:STRUCT    
+            TOP_SI:STRUCT    
+                EV_CLASS:BYTE;                                              //Event class
+                EV_NUM:BYTE;                                                //Event number
+                PRIORITY:BYTE;                                              //Priority
+                NUM:BYTE;                                                   //OB-Number
+                TYP2_3:BYTE;                                                //Reserved
+                TYP1:BYTE;                                                  //Reserved
+                ZI1:WORD;                                                   //Reserved
+                ZI2_3:DWORD;                                                //Reserved
+            END_STRUCT;   
+            SUBNET:BYTE;                                                    //SUBNET ID
+            RACK:BYTE;                                                      //Rack Number
+            SL_TYP:BYTE;                                                    //Slave-/Profiltyp
+            A_INF:BYTE;                                                     //Alarm-Info-Type
+            ET_CR_FL:BYTE;                                                  //ET-CR-Flags
+            ET_ER_FL:BYTE;                                                  //ET-ER-Flags
+            PNO_ID:WORD;                                                    //PROFIBUS Ident Number
+            AINFO:STRUCT    
+                D_LENGTH:BYTE;                                              //Data Length
+                A_TYP:BYTE;                                                 //Alarm Type
+                SLOT:BYTE;                                                  //Slot Number
+                A_SPEC:BYTE;                                                //Alarm-Specifire
+                A_0:BYTE;                                                   //Alarm Information
+                A_1:BYTE;                                                   //Alarm Information
+                A_2:BYTE;                                                   //Alarm Information
+                A_3:BYTE;                                                   //Alarm Information
+                A_4:BYTE;                                                   //Alarm Information
+                A_5:BYTE;                                                   //Alarm Information
+                A_6:BYTE;                                                   //Alarm Information
+                A_7:BYTE;                                                   //Alarm Information
+                A_8:BYTE;                                                   //Alarm Information
+                A_9:BYTE;                                                   //Alarm Information
+                A_10:BYTE;                                                  //Alarm Information
+                A_11:BYTE;                                                  //Alarm Information
+                A_12:BYTE;                                                  //Alarm Information
+                A_13:BYTE;                                                  //Alarm Information
+                A_14:BYTE;                                                  //Alarm Information
+                A_15:BYTE;                                                  //Alarm Information
+                A_16:BYTE;                                                  //Alarm Information
+                A_17:BYTE;                                                  //Alarm Information
+                A_18:BYTE;                                                  //Alarm Information
+                A_19:BYTE;                                                  //Alarm Information
+                A_20:BYTE;                                                  //Alarm Information
+                A_21:BYTE;                                                  //Alarm Information
+                A_22:BYTE;                                                  //Alarm Information
+                A_23:BYTE;                                                  //Alarm Information
+                A_24:BYTE;                                                  //Alarm Information
+                A_25:BYTE;                                                  //Alarm Information
+                A_26:BYTE;                                                  //Alarm Information
+                A_27:BYTE;                                                  //Alarm Information
+                A_28:BYTE;                                                  //Alarm Information
+                A_29:BYTE;                                                  //Alarm Information
+                A_30:BYTE;                                                  //Alarm Information
+                A_31:BYTE;                                                  //Alarm Information
+                A_32:BYTE;                                                  //Alarm Information
+                A_33:BYTE;                                                  //Alarm Information
+                A_34:BYTE;                                                  //Alarm Information
+                A_35:BYTE;                                                  //Alarm Information
+                A_36:BYTE;                                                  //Alarm Information
+                A_37:BYTE;                                                  //Alarm Information
+                A_38:BYTE;                                                  //Alarm Information
+                A_39:BYTE;                                                  //Alarm Information
+                A_40:BYTE;                                                  //Alarm Information
+                A_41:BYTE;                                                  //Alarm Information
+                A_42:BYTE;                                                  //Alarm Information
+                A_43:BYTE;                                                  //Alarm Information
+                A_44:BYTE;                                                  //Alarm Information
+                A_45:BYTE;                                                  //Alarm Information
+                A_46:BYTE;                                                  //Alarm Information
+                A_47:BYTE;                                                  //Alarm Information
+                A_48:BYTE;                                                  //Alarm Information
+                A_49:BYTE;                                                  //Alarm Information
+                A_50:BYTE;                                                  //Alarm Information
+                A_51:BYTE;                                                  //Alarm Information
+                A_52:BYTE;                                                  //Alarm Information
+                A_53:BYTE;                                                  //Alarm Information
+                A_54:BYTE;                                                  //Alarm Information
+                A_55:BYTE;                                                  //Alarm Information
+                A_56:BYTE;                                                  //Alarm Information
+                A_57:BYTE;                                                  //Alarm Information
+                A_58:BYTE;                                                  //Alarm Information
+                A_59:BYTE;                                                  //Alarm Information
+            END_STRUCT;   
+            STATUS:DWORD;                                                   //Status SFB 54
+        END_STRUCT;   
+        OB_83:STRUCT    
+            TOP_SI:STRUCT    
+                EV_CLASS:BYTE;                                              //Event class
+                EV_NUM:BYTE;                                                //Event number
+                PRIORITY:BYTE;                                              //Priority
+                NUM:BYTE;                                                   //OB-Number
+                TYP2_3:BYTE;                                                //Reserved
+                TYP1:BYTE;                                                  //Reserved
+                ZI1:WORD;                                                   //Reserved
+                ZI2_3:DWORD;                                                //Reserved
+            END_STRUCT;   
+            SUBNET:BYTE;                                                    //SUBNET ID
+            RACK:BYTE;                                                      //Rack Number
+            SLOT:BYTE;                                                      //Slot Number
+            STATUS:DWORD;                                                   //Status SFB 54
+        END_STRUCT;   
+        OB_85:STRUCT    
+            TOP_SI:STRUCT    
+                EV_CLASS:BYTE;                                              //Event class
+                EV_NUM:BYTE;                                                //Event number
+                PRIORITY:BYTE;                                              //Priority
+                NUM:BYTE;                                                   //OB-Number
+                TYP2_3:BYTE;                                                //Reserved
+                TYP1:BYTE;                                                  //Reserved
+                ZI1:WORD;                                                   //Reserved
+                ZI2_3:DWORD;                                                //Reserved
+            END_STRUCT;   
+            SUBNET:BYTE;                                                    //SUBNET ID
+            RACK:BYTE;                                                      //Rack Number
+            SLOT:BYTE;                                                      //Slot Number
+            STATUS:DWORD;                                                   //Status SFB 54
+        END_STRUCT;   
+        OB_86:STRUCT    
+            TOP_SI:STRUCT    
+                EV_CLASS:BYTE;                                              //Event class
+                EV_NUM:BYTE;                                                //Event number
+                PRIORITY:BYTE;                                              //Priority
+                NUM:BYTE;                                                   //OB-Number
+                TYP2_3:BYTE;                                                //Reserved
+                TYP1:BYTE;                                                  //Reserved
+                ZI1:WORD;                                                   //Reserved
+                ZI2_3:DWORD;                                                //Reserved
+            END_STRUCT;   
+            SUBNET:BYTE;                                                    //SUBNET ID
+            RACK:BYTE;                                                      //Rack Number
+            STATUS:DWORD;                                                   //Status SFB 54
+        END_STRUCT;   
+        OB_81:STRUCT    
+            TOP_SI:STRUCT    
+                EV_CLASS:BYTE;                                              //Event class
+                EV_NUM:BYTE;                                                //Event number
+                PRIORITY:BYTE;                                              //Priority
+                NUM:BYTE;                                                   //OB-Number
+                TYP2_3:BYTE;                                                //Reserved
+                TYP1:BYTE;                                                  //Reserved
+                ZI1:WORD;                                                   //Reserved
+                ZI2_3:DWORD;                                                //Reserved
+            END_STRUCT;   
+        END_STRUCT;   
+    END_STRUCT;   
+    
+END_VAR
+
+VAR_OUTPUT
+
+    Ev_Class { S7_visible := 'false';
+               S7_dynamic := 'true' }   : BYTE := B#16#00;                  // Event class: 0x39 - incoming, 0x38 - outgoing
+    Flt_ID { S7_visible := 'false';
+             S7_dynamic := 'true' }     : BYTE := B#16#00;                  // Fault code: from 0x21 to 0x33
+    Priority { S7_visible := 'false';
+               S7_dynamic := 'true' }   : INT := 0;                         // Priority class: from 2 to 26 in RUN mode
+    OB_Num { S7_visible := 'false';
+             S7_dynamic := 'true' }     : INT := 0;                         // OB number (always 81)
+    CPU_Type { S7_visible := 'false';
+               S7_dynamic := 'true';
+               S7_string_0 := 'Std. CPU';
+               S7_string_1 := 'H-CPU' } : BOOL := FALSE;                    // 0 - Standard CPU, 1 - H-CPU
+    PriSec { S7_visible := 'false';
+             S7_dynamic := 'true';
+             S7_string_0 := 'Secondary';
+             S7_string_1 := 'Primary' } : BOOL := FALSE;                    // 1 - Primary CPU, 0 - Secondary CPU for H-systems
+    Rack_Num { S7_visible := 'false';
+               S7_dynamic := 'true' }   : INT := 0;                         // Rack number
+    PBat_Flt { S7_visible := 'true';
+               S7_dynamic := 'true';
+               S7_string_0 := 'OK';
+               S7_string_1 := 'Fault';
+               S7_m_c := 'true' }       : BOOL := FALSE;                    // At least one battery fault in the primary rack
+    SBat_Flt { S7_visible := 'true';
+               S7_dynamic := 'true';
+               S7_string_0 := 'OK';
+               S7_string_1 := 'Fault';
+               S7_m_c := 'true' }       : BOOL := FALSE;                    // At least one battery fault in the secondary rack
+
+END_VAR
+
+VAR_TEMP
+
+    tRetCode    : WORD;                                                     // RET_VAL from called functions
+    tCPU_Type   : BOOL;
+    tCPU_P_S    : BOOL;
+    tRack_Num   : INT;
+    tBat_Flt    : BOOL;
+    
+END_VAR
+
+BEGIN
+
+    tRetCode := W#16#0000;
+    tCPU_Type := FALSE;
+    tCPU_P_S := FALSE;
+    tBat_Flt := FALSE;
+
+    IF CPU_DIAG.OB_81.TOP_SI.NUM <> B#16#51 THEN
+        RETURN;                                                             // Если в структуре TOP_SI не заполнен OB_NUM - значит OB81 ещё не вызывалась, и все остальные данные недостоверны. Поэтому сразу выходим.
+    END_IF;
+
+    IF CPU_DIAG.OB_81.TOP_SI.ZI1 = W#16#0000 THEN                           // Если весь TOP_SI.RACK_CPU = 0000hex -
+        tCPU_Type := FALSE;                                                 // значит это стандартный CPU,
+    ELSE
+        tCPU_Type := TRUE;                                                  // иначе это H-CPU
+        IF (CPU_DIAG.OB_81.TOP_SI.ZI1 AND W#16#0800) <> W#16#0000 THEN      // Определяем Primary или Secondary
+            tCPU_P_S := TRUE;                                               // Primary: CPU_P_S = 1
+        ELSE
+            tCPU_P_S := FALSE;                                              // Secondary: CPU_P_S = 0
+        END_IF;
+    END_IF;
+
+    tBat_Flt := BYTE_TO_BOOL(CPU_DIAG.OB_81.TOP_SI.EV_CLASS XOR B#16#38);   // 38hex - событие ушло, 39hex - событие пришло
+
+    Ev_Class := CPU_DIAG.OB_81.TOP_SI.EV_CLASS;
+    Flt_ID := CPU_DIAG.OB_81.TOP_SI.EV_NUM;
+    Priority := BYTE_TO_INT(CPU_DIAG.OB_81.TOP_SI.PRIORITY);
+    OB_Num := BYTE_TO_INT(CPU_DIAG.OB_81.TOP_SI.NUM);
+    CPU_Type := tCPU_Type;
+    PriSec := tCPU_P_S;
+    Rack_Num := WORD_TO_INT(SHR(IN := CPU_DIAG.OB_81.TOP_SI.ZI1 AND W#16#0700, N := 8));
+    
+    IF CPU_DIAG.OB_81.TOP_SI.EV_NUM = B#16#21 OR                            // Если Fault ID = 21hex, значит неисправность батареи в центральной стойке
+       CPU_DIAG.OB_81.TOP_SI.EV_NUM = B#16#25 OR                            // Если Fault ID = 25hex, значит неисправность батареи в резервной стойке
+       CPU_DIAG.OB_81.TOP_SI.EV_NUM = B#16#31 THEN                          // Если Fault ID = 31hex, значит неисправность батареи в стойке расширения
+        PBat_Flt := tBat_Flt AND (tCPU_P_S OR NOT tCPU_Type);               // Событие неисправности присваиваем Primary, если у нас указан Primary контроллер или Стандартный
+        SBat_Flt := tBat_Flt AND (NOT tCPU_P_S AND tCPU_Type);              // Событие неисправности присваиваем Secondary, если у нас указан Secondary контроллер и это H-CPU
+    END_IF;
+
+END_FUNCTION_BLOCK
