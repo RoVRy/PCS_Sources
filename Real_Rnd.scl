@@ -1,0 +1,67 @@
+FUNCTION Real_Rnd { S7_blockview := 'big';
+                    Scl_OverwriteBlocks := 'y';
+                    Scl_CreateObjectCode := 'y';
+                    Scl_OptimizeObjectCode := 'y';
+                    Scl_MonitorArrayLimits := 'n';
+                    Scl_CreateDebugInfo := 'n';
+                    Scl_S7ServerActive := 'n';
+                    GenerateReferenceData := 'y';
+                    SetMaximumStringLength := '254' } : VOID
+    TITLE = 'Round REAL to desired precision'
+    VERSION: '0.1'
+    AUTHOR: RoVRy
+    NAME: Real_Rnd
+    FAMILY: Math
+
+KNOW_HOW_PROTECT
+
+
+VAR_INPUT
+
+    In      { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+        Value   : REAL := 0.0;                          // Value
+        ST      : BYTE := B#16#FF;                      // Signal status
+    END_STRUCT;                                         // Input value
+
+    Digits  { S7_visible := 'true';
+              S7_dynamic := 'true' }    : INT := 1;     // Number of wanted digits after decimal delimiter (0...5)
+    
+END_VAR
+
+VAR_OUTPUT
+
+    Out     { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+        Value   : REAL := 0.0;                          // Value
+        ST      : BYTE := B#16#FF;                      // Signal status
+    END_STRUCT;                                         // Output value
+
+END_VAR
+
+VAR_TEMP
+
+    tReal           : REAL;                             // Хранение числа в виде десятичного логарифма
+    tMult           : REAL;                             // 
+    tExp            : REAL;
+    tMant           : REAL;
+    tDigits         : INT;
+
+END_VAR
+
+    tDigits := Digits;
+
+    IF tDigits < 0 THEN
+        tDigits := 0;
+    ELSIF tDigits > 5 THEN
+        tDigits := 5;
+    END_IF;
+
+    tReal := LOG(IN.Value);
+    tExp := TRUNC(tReal);
+    tMant := tReal - tExp;
+    tMult := EXPD(tDigits - tExp);
+    Out.Value := ROUND(EXPD(INT_TO_REAL(tDigits) + tMant)) / tMult;
+    Out.ST := In.ST;
+
+END_FUNCTION
