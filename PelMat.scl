@@ -1,0 +1,400 @@
+FUNCTION PelMat: VOID
+
+TITLE = 'Calculate pellets materials'
+
+AUTHOR:   RovRy
+FAMILY:   SGOK
+NAME:     PelMat
+VERSION:  '0.3'
+
+KNOW_HOW_PROTECT 
+
+(*
+------------------------------ Блок констант статусов сигналов ------------------------------
+*)
+CONST
+
+    ST_BDR  := 16#00;
+    ST_BPR  := 16#28;
+    ST_Sim  := 16#60;
+    ST_UDR  := 16#68;
+    ST_UPR  := 16#78;
+    ST_Good := 16#80;
+    ST_Mnt  := 16#A4;
+    ST_Unk  := 16#FF;    
+
+END_CONST
+
+(*
+------------------------------ Входные параметры ------------------------------
+*)
+VAR_INPUT            
+
+    In01 { S7_visible := 'true';
+           S7_dynamic := 'true' }       : STRUCT
+        Value   : REAL := 0.0;                                      // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 1 value
+
+    In01_En { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+        Value   : BOOL := FALSE;                                    // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 1 enable signal
+    
+    In02 { S7_visible := 'true';
+           S7_dynamic := 'true' }       : STRUCT
+        Value   : REAL := 0.0;                                      // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 2 value
+
+    In02_En { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+        Value   : BOOL := FALSE;                                    // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 2 enable signal
+
+    In03 { S7_visible := 'true';
+           S7_dynamic := 'true' }       : STRUCT
+        Value   : REAL := 0.0;                                      // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 3 value
+
+    In03_En { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+        Value   : BOOL := FALSE;                                    // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 3 enable signal
+
+    In04 { S7_visible := 'true';
+           S7_dynamic := 'true' }       : STRUCT
+        Value   : REAL := 0.0;                                      // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 4 value
+
+    In04_En { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+        Value   : BOOL := FALSE;                                    // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 4 enable signal
+
+    In05 { S7_visible := 'true';
+           S7_dynamic := 'true' }       : STRUCT
+        Value   : REAL := 0.0;                                      // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 5 value
+
+    In05_En { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+        Value   : BOOL := FALSE;                                    // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 5 enable signal
+
+    In06 { S7_visible := 'true';
+           S7_dynamic := 'true' }       : STRUCT
+        Value   : REAL := 0.0;                                      // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 6 value
+
+    In06_En { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+        Value   : BOOL := FALSE;                                    // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 6 enable signal
+
+    In07 { S7_visible := 'true';
+           S7_dynamic := 'true' }       : STRUCT
+        Value   : REAL := 0.0;                                      // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 7 value
+
+    In07_En { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+        Value   : BOOL := FALSE;                                    // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 7 enable signal
+
+    In08 { S7_visible := 'true';
+           S7_dynamic := 'true' }       : STRUCT
+        Value   : REAL := 0.0;                                      // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 8 value
+
+    In08_En { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+        Value   : BOOL := FALSE;                                    // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 8 enable signal
+
+    In09 { S7_visible := 'true';
+           S7_dynamic := 'true' }       : STRUCT
+        Value   : REAL := 0.0;                                      // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 9 value
+
+    In09_En { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+        Value   : BOOL := FALSE;                                    // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 9 enable signal
+
+    In10 { S7_visible := 'true';
+           S7_dynamic := 'true' }       : STRUCT
+        Value   : REAL := 0.0;                                      // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 10 value
+
+    In10_En { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+        Value   : BOOL := FALSE;                                    // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 10 enable signal
+
+    In11 { S7_visible := 'true';
+           S7_dynamic := 'true' }       : STRUCT
+        Value   : REAL := 0.0;                                      // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 11 value
+
+    In11_En { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+        Value   : BOOL := FALSE;                                    // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 11 enable signal
+
+    In12 { S7_visible := 'true';
+           S7_dynamic := 'true' }       : STRUCT
+        Value   : REAL := 0.0;                                      // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 12 value
+
+    In12_En { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+        Value   : BOOL := FALSE;                                    // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Line 12 enable signal
+
+END_VAR
+
+(*
+------------------------------ Выходные параметры ------------------------------
+*)
+VAR_OUTPUT            
+
+    Summ { S7_visible := 'true';
+           S7_dynamic := 'true' }       : STRUCT
+        Value   : REAL := 0.0;                                      // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Summary value
+
+    Average { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+        Value   : REAL := 0.0;                                      // Value
+        ST      : BYTE := ST_Unk;                                   // Signal status
+    END_STRUCT;                                                     // Average value
+
+    Num { S7_visible := 'true';
+          S7_dynamic := 'true' }        : INT;                      // Number of lines in process
+
+END_VAR
+
+(*
+------------------------------ Временные параметры ------------------------------
+*)
+VAR_TEMP             
+
+    tSum        : REAL;
+    tEn         : WORD;
+    tEnr        : REAL;
+    taEn AT tEn : ARRAY[0..15] OF BOOL;
+    tEn01       : BOOL;
+    tEn02       : BOOL;
+    tEn03       : BOOL;
+    tEn04       : BOOL;
+    tEn05       : BOOL;
+    tEn06       : BOOL;
+    tEn07       : BOOL;
+    tEn08       : BOOL;
+    tEn09       : BOOL;
+    tEn10       : BOOL;
+    tEn11       : BOOL;
+    tEn12       : BOOL;
+
+    tInST       : STRUCT
+        B0 : BYTE;
+        B1 : BYTE;
+        B2 : BYTE;
+        B3 : BYTE;
+        B4 : BYTE;
+        B5 : BYTE;
+        B6 : BYTE;
+        B7 : BYTE;
+        B8 : BYTE;
+        B9 : BYTE;
+        B10 : BYTE;
+        B11 : BYTE;
+        B12 : BYTE;
+        B13 : BYTE;
+        B14 : BYTE;
+        B15 : BYTE;
+    END_STRUCT;
+
+    taInST AT tInST : ARRAY[0..15] OF BYTE;
+    tInSTp      : INT;
+    tST         : BYTE;    
+
+END_VAR
+
+BEGIN
+
+    tSum := 0.0;
+    tInSTp := 0;
+    
+    IF In01_En.Value AND In01_En.ST <> ST_BDR AND In01_En.ST <> ST_BPR AND In01_En.ST <> ST_Mnt AND In01_En.ST <> ST_Unk AND
+       In01.ST <> ST_BDR AND In01.ST <> ST_BPR AND In01.ST <> ST_Mnt AND In01.ST <> ST_Unk THEN
+        tEn01 := TRUE;
+        taInST[tInSTp] := In01.ST;
+        tInSTp := tInSTp + 1;
+    END_IF;
+
+    IF In02_En.Value AND In02_En.ST <> ST_BDR AND In02_En.ST <> ST_BPR AND In02_En.ST <> ST_Mnt AND In02_En.ST <> ST_Unk AND
+       In02.ST <> ST_BDR AND In02.ST <> ST_BPR AND In02.ST <> ST_Mnt AND In02.ST <> ST_Unk THEN
+        tEn02 := TRUE;
+        taInST[tInSTp] := In02.ST;
+        tInSTp := tInSTp + 1;
+    END_IF;
+
+    IF In03_En.Value AND In03_En.ST <> ST_BDR AND In03_En.ST <> ST_BPR AND In03_En.ST <> ST_Mnt AND In03_En.ST <> ST_Unk AND
+       In03.ST <> ST_BDR AND In03.ST <> ST_BPR AND In03.ST <> ST_Mnt AND In03.ST <> ST_Unk THEN
+        tEn03 := TRUE;
+        taInST[tInSTp] := In03.ST;
+        tInSTp := tInSTp + 1;
+    END_IF;
+
+    IF In04_En.Value AND In04_En.ST <> ST_BDR AND In04_En.ST <> ST_BPR AND In04_En.ST <> ST_Mnt AND In04_En.ST <> ST_Unk AND
+       In04.ST <> ST_BDR AND In04.ST <> ST_BPR AND In04.ST <> ST_Mnt AND In04.ST <> ST_Unk THEN
+        tEn04 := TRUE;
+        taInST[tInSTp] := In04.ST;
+        tInSTp := tInSTp + 1;
+    END_IF;
+
+    IF In05_En.Value AND In05_En.ST <> ST_BDR AND In05_En.ST <> ST_BPR AND In05_En.ST <> ST_Mnt AND In05_En.ST <> ST_Unk AND
+       In05.ST <> ST_BDR AND In05.ST <> ST_BPR AND In05.ST <> ST_Mnt AND In05.ST <> ST_Unk THEN
+        tEn05 := TRUE;
+        taInST[tInSTp] := In05.ST;
+        tInSTp := tInSTp + 1;
+    END_IF;
+
+    IF In06_En.Value AND In06_En.ST <> ST_BDR AND In06_En.ST <> ST_BPR AND In06_En.ST <> ST_Mnt AND In06_En.ST <> ST_Unk AND
+       In06.ST <> ST_BDR AND In06.ST <> ST_BPR AND In06.ST <> ST_Mnt AND In06.ST <> ST_Unk THEN
+        tEn06 := TRUE;
+        taInST[tInSTp] := In06.ST;
+        tInSTp := tInSTp + 1;
+    END_IF;
+
+    IF In07_En.Value AND In07_En.ST <> ST_BDR AND In07_En.ST <> ST_BPR AND In07_En.ST <> ST_Mnt AND In07_En.ST <> ST_Unk AND
+       In07.ST <> ST_BDR AND In07.ST <> ST_BPR AND In07.ST <> ST_Mnt AND In07.ST <> ST_Unk THEN
+        tEn07 := TRUE;
+        taInST[tInSTp] := In07.ST;
+        tInSTp := tInSTp + 1;
+    END_IF;
+
+    IF In08_En.Value AND In08_En.ST <> ST_BDR AND In08_En.ST <> ST_BPR AND In08_En.ST <> ST_Mnt AND In08_En.ST <> ST_Unk AND
+       In08.ST <> ST_BDR AND In08.ST <> ST_BPR AND In08.ST <> ST_Mnt AND In08.ST <> ST_Unk THEN
+        tEn08 := TRUE;
+        taInST[tInSTp] := In08.ST;
+        tInSTp := tInSTp + 1;
+    END_IF;
+
+    IF In09_En.Value AND In09_En.ST <> ST_BDR AND In09_En.ST <> ST_BPR AND In09_En.ST <> ST_Mnt AND In09_En.ST <> ST_Unk AND
+       In09.ST <> ST_BDR AND In09.ST <> ST_BPR AND In09.ST <> ST_Mnt AND In09.ST <> ST_Unk THEN
+        tEn09 := TRUE;
+        taInST[tInSTp] := In09.ST;
+        tInSTp := tInSTp + 1;
+    END_IF;
+
+    IF In10_En.Value AND In10_En.ST <> ST_BDR AND In10_En.ST <> ST_BPR AND In10_En.ST <> ST_Mnt AND In10_En.ST <> ST_Unk AND
+       In10.ST <> ST_BDR AND In10.ST <> ST_BPR AND In10.ST <> ST_Mnt AND In10.ST <> ST_Unk THEN
+        tEn10 := TRUE;
+        taInST[tInSTp] := In10.ST;
+        tInSTp := tInSTp + 1;
+    END_IF;
+
+    IF In11_En.Value AND In11_En.ST <> ST_BDR AND In11_En.ST <> ST_BPR AND In11_En.ST <> ST_Mnt AND In11_En.ST <> ST_Unk AND
+       In11.ST <> ST_BDR AND In11.ST <> ST_BPR AND In11.ST <> ST_Mnt AND In11.ST <> ST_Unk THEN
+        tEn11 := TRUE;
+        taInST[tInSTp] := In11.ST;
+        tInSTp := tInSTp + 1;
+    END_IF;
+
+    IF In12_En.Value AND In12_En.ST <> ST_BDR AND In12_En.ST <> ST_BPR AND In12_En.ST <> ST_Mnt AND In12_En.ST <> ST_Unk AND
+       In12.ST <> ST_BDR AND In12.ST <> ST_BPR AND In12.ST <> ST_Mnt AND In12.ST <> ST_Unk THEN
+        tEn12 := TRUE;
+        taInST[tInSTp] := In12.ST;
+        tInSTp := tInSTp + 1;
+    END_IF;
+
+    IF tEn01 THEN
+        tSum := tSum + In01.Value;
+    END_IF;
+
+    IF tEn02 THEN
+        tSum := tSum + In02.Value;
+    END_IF;
+
+    IF tEn03 THEN
+        tSum := tSum + In03.Value;
+    END_IF;
+    
+    IF tEn04 THEN
+        tSum := tSum + In04.Value;
+    END_IF;
+
+    IF tEn05 THEN
+        tSum := tSum + In05.Value;
+    END_IF;
+
+    IF tEn06 THEN
+        tSum := tSum + In06.Value;
+    END_IF;
+    
+    IF tEn07 THEN
+        tSum := tSum + In07.Value;
+    END_IF;
+    
+    IF tEn08 THEN
+        tSum := tSum + In08.Value;
+    END_IF;
+    
+    IF tEn09 THEN
+        tSum := tSum + In09.Value;
+    END_IF;
+    
+    IF tEn10 THEN
+        tSum := tSum + In10.Value;
+    END_IF;
+    
+    IF tEn11 THEN
+        tSum := tSum + In11.Value;
+    END_IF;
+    
+    IF tEn12 THEN
+        tSum := tSum + In12.Value;
+    END_IF;
+
+    IF tInSTp = 0 THEN
+        Summ.Value := 0.0;
+        Summ.ST := ST_Good;
+        Average.Value := 0.0;
+        Average.ST := ST_Good;
+    ELSE
+        tST := SelST16(InST := tInST, Num := tInSTp, SelPrio := 0);
+        Summ.Value := tSum;
+        Summ.ST := tST;
+        Average.Value := tSum / INT_TO_REAL(tInSTp);
+        Average.ST := tST;
+    END_IF;
+
+    Num := tInSTp;
+
+END_FUNCTION
