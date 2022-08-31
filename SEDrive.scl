@@ -1,0 +1,1037 @@
+(*
+---------------------------------------- SE Altivar 6xx block-driver for PCS 7 ----------------------------------------
+*)
+FUNCTION_BLOCK SEDrive
+    { S7_alarm_ui := '1' }
+    TITLE = 'SE Altivar 6xx block driver'
+    VERSION: '0.7'
+    AUTHOR: RoVRy
+    NAME: SEDrive
+    FAMILY: Channel
+(*
+---------------------------------------- Constants ----------------------------------------
+*)
+CONST
+    ST_Unkn := 16#00;
+    ST_Siml := 16#60;
+    ST_Good := 16#80;
+    ST_Undf := 16#FF;
+END_CONST
+(*
+---------------------------------------- Inputs ----------------------------------------
+*)
+VAR_INPUT
+    PZDIn1      { S7_visible := 'true' } : WORD;                            // Input word 1 - PZD1
+    PZDIn1_Prm  { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 3201;                       // Parameter's logic address assigned for PZD1 input (0 = no assignment)
+    PZDIn2      { S7_visible := 'true' } : WORD;                            // Input word 2 - PZD2
+    PZDIn2_Prm  { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 3202;                       // Parameter's logic address assigned for PZD2 input (0 = no assignment)
+    PZDIn3      { S7_visible := 'true' } : WORD;                            // Input word 3 - PZD3
+    PZDIn3_Prm  { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 3204;                       // Parameter's logic address assigned for PZD3 input (0 = no assignment)
+    PZDIn4      { S7_visible := 'true' } : WORD;                            // Input word 4 - PZD4
+    PZDIn4_Prm  { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 3205;                       // Parameter's logic address assigned for PZD4 input (0 = no assignment)
+    PZDIn5      { S7_visible := 'true' } : WORD;                            // Input word 5 - PZD5
+    PZDIn5_Prm  { S7_visible:='false';
+                  S7_link := 'false' } : INT := 3211;                       // Parameter's logic address assigned for PZD5 input (0 = no assignment)
+    PZDIn6      { S7_visible := 'true' } : WORD;                            // Input word 6 - PZD6
+    PZDIn6_Prm  { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 5202;                       // Parameter's logic address assigned for PZD6 input (0 = no assignment)
+    PZDIn7      { S7_visible := 'true' } : WORD;                            // Input word 7 - PZD7
+    PZDIn7_Prm  { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 3240;                       // Parameter's logic address assigned for PZD7 input (0 = no assignment)
+    PZDIn8      { S7_visible := 'true' } : WORD;                            // Input word 8 - PZD8
+    PZDIn8_Prm  { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 7121;                       // Parameter's logic address assigned for PZD8 input (0 = no assignment)
+    PZDIn9      { S7_visible := 'false' } : WORD;                           // Input word 9 - PZD9
+    PZDIn9_Prm  { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 0;                          // Parameter's logic address assigned for PZD9 input (0 = no assignment)
+    PZDIn10     { S7_visible := 'false' } : WORD;                           // Input word 10 - PZD10
+    PZDIn10_Prm { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 0;                          // Parameter's logic address assigned for PZD10 input (0 = no assignment)
+    PZDIn11     { S7_visible := 'false' } : WORD;                           // Input word 11 - PZD11
+    PZDIn11_Prm { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 0;                          // Parameter's logic address assigned for PZD11 input (0 = no assignment)
+    PZDIn12     { S7_visible := 'false' } : WORD;                           // Input word 12 - PZD12
+    PZDIn12_Prm { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 0;                          // Parameter's logic address assigned for PZD12 input (0 = no assignment)
+    PZDIn13     { S7_visible := 'false' } : WORD;                           // Input word 13 - PZD13
+    PZDIn13_Prm { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 0;                          // Parameter's logic address assigned for PZD13 input (0 = no assignment)
+    PZDIn14     { S7_visible := 'false' } : WORD;                           // Input word 14 - PZD14
+    PZDIn14_Prm { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 0;                          // Parameter's logic address assigned for PZD14 input (0 = no assignment)
+    PZDIn15     { S7_visible := 'false' } : WORD;                           // Input word 15 - PZD15
+    PZDIn15_Prm { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 0;                          // Parameter's logic address assigned for PZD15 input (0 = no assignment)
+    PZDIn16     { S7_visible := 'false' } : WORD;                           // Input word 16 - PZD16
+    PZDIn16_Prm { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 0;                          // Parameter's logic address assigned for PZD16 input (0 = no assignment)
+
+    PZDOut1_Prm { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 8501;                       // Parameter's logic address assigned for PZD1 output (0 = no assignment)
+    PZDOut2_Prm { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 8502;                       // Parameter's logic address assigned for PZD2 output (0 = no assignment)
+    PZDOut3_Prm { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 0;                          // Parameter's logic address assigned for PZD3 output (0 = no assignment)
+    PZDOut4_Prm { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 0;                          // Parameter's logic address assigned for PZD4 output (0 = no assignment)
+    PZDOut5_Prm { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 0;                          // Parameter's logic address assigned for PZD5 output (0 = no assignment)
+    PZDOut6_Prm { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 0;                          // Parameter's logic address assigned for PZD6 output (0 = no assignment)
+    PZDOut7_Prm { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 0;                          // Parameter's logic address assigned for PZD7 output (0 = no assignment)
+    PZDOut8_Prm { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 0;                          // Parameter's logic address assigned for PZD8 output (0 = no assignment)
+    PZDOut9_Prm { S7_visible := 'false';
+                  S7_link := 'false' } : INT := 0;                          // Parameter's logic address assigned for PZD9 output (0 = no assignment)
+    PZDOut10_Prm { S7_visible := 'false';
+                   S7_link := 'false' } : INT := 0;                         // Parameter's logic address assigned for PZD10 output (0 = no assignment)
+    PZDOut11_Prm { S7_visible := 'false';
+                   S7_link := 'false' } : INT := 0;                         // Parameter's logic address assigned for PZD11 output (0 = no assignment)
+    PZDOut12_Prm { S7_visible := 'false';
+                   S7_link := 'false' } : INT := 0;                         // Parameter's logic address assigned for PZD12 output (0 = no assignment)
+    PZDOut13_Prm { S7_visible := 'false';
+                   S7_link := 'false' } : INT := 0;                         // Parameter's logic address assigned for PZD13 output (0 = no assignment)
+    PZDOut14_Prm { S7_visible := 'false';
+                   S7_link := 'false' } : INT := 0;                         // Parameter's logic address assigned for PZD14 output (0 = no assignment)
+    PZDOut15_Prm { S7_visible := 'false';
+                   S7_link := 'false' } : INT := 0;                         // Parameter's logic address assigned for PZD15 output (0 = no assignment)
+    PZDOut16_Prm { S7_visible := 'false';
+                   S7_link := 'false' } : INT := 0;                         // Parameter's logic address assigned for PZD16 output (0 = no assignment)
+
+    Telegram    { S7_link := 'false' } : INT := 106;                        // Telegram number. Only numbers 100, 101, 102, 106 and 107 are acceptable
+
+    RackF_In    { S7_visible := 'true' } : BOOL;                            // Input for OB_DIAG1.QRACKF (Connection status)
+    
+    SP_Li       { S7_visible := 'true' } : STRUCT
+        Value   : REAL  := 0.0;                                             // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // Speed setpoint
+
+    SP_LiScale  { S7_visible := 'false' } : STRUCT
+        High    : REAL := 100.0;                                            // High
+        Low     : REAL := 0.0;                                              // Low
+    END_STRUCT;                                                             // Input scale factor of setpoint
+
+    ScaleUnits  { S7_visible := 'false' } : STRUCT
+        RefFreq : REAL := 0.1;                                              // Reference frequency (8502)
+        MotCurr : REAL := 0.1;                                              // Motor current (3204)
+        PIDRef  : REAL := 0.1;                                              // PID reference (11982)
+        PIDFbk  : REAL := 0.1;                                              // PID feedback (11981)
+        PIDErr  : REAL := 0.1;                                              // PID error (11980)
+        PhysAI1 : REAL := 0.1;                                              // Physical value AI1 (5242)
+        PhysAI2 : REAL := 0.1;                                              // Physical value AI2 (5243)
+        PhysAI3 : REAL := 0.1;                                              // Physical value AI3 (5244)
+        PhysAQ1 : REAL := 0.1;                                              // Physical value AQ1 (5271)
+        NomCurr : REAL := 0.1;                                              // Nominal drive current (3017)
+        ThrCurr : REAL := 0.1;                                              // Motor thermal current (9622)
+        MotFreq : REAL := 0.2;                                              // Motor frequency (3202)
+        MotTorq : REAL := 0.1;                                              // Motor torque (3205)
+        MotVolt : REAL := 1.0;                                              // Motor voltage supply (3208)
+        MotPowr : REAL := 1.0;                                              // Motor power (3211) 
+    END_STRUCT;                                                             // Scale units for next parameters:
+
+    InvSP       { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // Invert setpoint (rotation direction)
+    
+    EnOp        { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // Enable operation / Run command
+
+    Run         { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // Run command. Latch with 2-wire logic, Pulse with 3-wire logic
+
+    RunAuth     { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // Run authorization for 3-wire logic. 0 = Stop, 1 = Run authorized
+
+    AuthSup     { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // 1 = Authorization to supply AC power
+
+    QuickStp    { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // Quick stop
+
+    HaltStop    { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // Halt Stop according to the [Type of stop] (Stt) parameter without leaving the Operation enabled state
+
+    Reset       { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // Fault reset/error cleared on transition 0 to 1
+
+    CMDRes04    { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // CMD reserved bit 4
+
+    CMDRes05    { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // CMD reserved bit 5
+
+    CMDRes06    { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // CMD reserved bit 6
+
+    CMDRes09    { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // CMD reserved bit 9
+
+    CMDRes10    { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // CMD reserved bit 10
+
+    CMDRes11    { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // CMD reserved bit 11
+
+    CMDRes12    { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // CMD reserved bit 12
+
+    CMDRes13    { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // CMD reserved bit 13
+
+    CMDRes14    { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // CMD reserved bit 14
+
+    CMDRes15    { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // CMD reserved bit 15
+
+    MsgLock     { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // Inhibit process messages
+
+    Feature     { S7_visible := 'false' } : STRUCT
+        Bit0    : BOOL := TRUE;                                             // 0 = 2-wire logic, 1 = 3-wire logic
+        Bit1    : BOOL := FALSE;                                            // With communication error, 0 = Reset all outputs to zeros, 1 = Keep last values
+        Bit2    : BOOL := FALSE;                                            // Reserved
+        Bit3    : BOOL := FALSE;                                            // Reserved
+        Bit4    : BOOL := FALSE;                                            // Reserved
+        Bit5    : BOOL := FALSE;                                            // Reserved
+        Bit6    : BOOL := FALSE;                                            // Reserved
+        Bit7    : BOOL := FALSE;                                            // Reserved
+        Bit8    : BOOL := FALSE;                                            // Reserved
+        Bit9    : BOOL := FALSE;                                            // Reserved
+        Bit10   : BOOL := FALSE;                                            // Reserved
+        Bit11   : BOOL := FALSE;                                            // Reserved
+        Bit12   : BOOL := FALSE;                                            // Reserved
+        Bit13   : BOOL := FALSE;                                            // Reserved
+        Bit14   : BOOL := FALSE;                                            // Reserved
+        Bit15   : BOOL := FALSE;                                            // Reserved
+        Bit16   : BOOL := FALSE;                                            // Reserved
+        Bit17   : BOOL := FALSE;                                            // Reserved
+        Bit18   : BOOL := FALSE;                                            // Reserved
+        Bit19   : BOOL := FALSE;                                            // Reserved
+        Bit20   : BOOL := FALSE;                                            // Reserved
+        Bit21   : BOOL := FALSE;                                            // Reserved
+        Bit22   : BOOL := FALSE;                                            // Reserved
+        Bit23   : BOOL := FALSE;                                            // Reserved
+        Bit24   : BOOL := FALSE;                                            // Reserved
+        Bit25   : BOOL := FALSE;                                            // Reserved
+        Bit26   : BOOL := FALSE;                                            // Reserved
+        Bit27   : BOOL := FALSE;                                            // Reserved
+        Bit28   : BOOL := FALSE;                                            // Reserved
+        Bit29   : BOOL := FALSE;                                            // Reserved
+        Bit30   : BOOL := FALSE;                                            // Reserved
+        Bit31   : BOOL := FALSE;                                            // Reserved
+    END_STRUCT;                                                             // Status of various feautures
+
+    HMISMsgEn   { S7_visible := 'false' } : STRUCT
+        TUN     : BOOL := FALSE;                                            // Drive automatic tuning
+        DCB     : BOOL := FALSE;                                            // DC injection
+        RDY     : BOOL := FALSE;                                            // Ready
+        NST     : BOOL := FALSE;                                            // Freewheel stop
+        RUN     : BOOL := FALSE;                                            // Running
+        ACC     : BOOL := FALSE;                                            // Accelerating
+        DEC     : BOOL := FALSE;                                            // Decelerating
+        CLI     : BOOL := TRUE;                                             // In current limitation
+        FST     : BOOL := FALSE;                                            // Fast stop
+        FLU     : BOOL := TRUE;                                             // Motor fluxing
+        NLP     : BOOL := TRUE;                                             // No mains voltage
+        CTL     : BOOL := FALSE;                                            // Control stopping
+        OBR     : BOOL := FALSE;                                            // Dec ramp adaptation
+        SOC     : BOOL := FALSE;                                            // Output cut
+        USA     : BOOL := TRUE;                                             // Undervoltage warning
+        TC      : BOOL := FALSE;                                            // TC mode active
+        ST      : BOOL := FALSE;                                            // In autotest
+        FA      : BOOL := TRUE;                                             // Autotest error
+        AOK     : BOOL := FALSE;                                            // Autotest OK
+        EP      : BOOL := FALSE;                                            // EEPROM test
+        FLT     : BOOL := TRUE;                                             // Operating state "Fault"
+        DCP     : BOOL := FALSE;                                            // DCP flashing mode
+        STO     : BOOL := FALSE;                                            // STO active
+        IDLE    : BOOL := FALSE;                                            // Energy saving
+        FWUP    : BOOL := FALSE;                                            // Firmware update
+        URA     : BOOL := TRUE;                                             // AFE mains undervoltage
+        ASA     : BOOL := FALSE;                                            // Angle test
+        BSC     : BOOL := FALSE;                                            // Backspin active
+        Res28   : BOOL := FALSE;                                            // Reserve
+        Res29   : BOOL := FALSE;                                            // Reserve
+        Res30   : BOOL := FALSE;                                            // Reserve
+        Res31   : BOOL := FALSE;                                            // Reserve
+    END_STRUCT;
+    HMISArray AT HMISMsgEn : ARRAY[0..31] OF BOOL;                          // For indexed access to HMISMsgEn parameters
+
+    LFTMsgEn    { S7_visible := 'false' } : STRUCT
+        EEF1    : BOOL := TRUE;                                             // EEPROM control
+        CFF     : BOOL := TRUE;                                             // Incorrect configuration
+        CFI     : BOOL := TRUE;                                             // Invalid configuration
+        SLF1    : BOOL := TRUE;                                             // Modbus communication interruption
+        ILF     : BOOL := TRUE;                                             // Internal communication interruption with option module 
+        CNF     : BOOL := TRUE;                                             // Fieldbus communication interruption
+        EPF1    : BOOL := TRUE;                                             // External detected error
+        OCF     : BOOL := TRUE;                                             // Overcurrent
+        CRF1    : BOOL := TRUE;                                             // Precharge capacitor
+        SPF     : BOOL := TRUE;                                             // Encoder feedback loss
+        ANF     : BOOL := TRUE;                                             // Load slipping
+        IHF     : BOOL := TRUE;                                             // Input Overheating
+        OHF     : BOOL := TRUE;                                             // Drive overheating
+        OLF     : BOOL := TRUE;                                             // Motor overload
+        OBF     : BOOL := TRUE;                                             // DC bus overvoltage
+        OSF     : BOOL := TRUE;                                             // Supply mains overvoltage
+        OPF1    : BOOL := TRUE;                                             // Single output phase loss
+        PHF     : BOOL := TRUE;                                             // Input phase loss
+        USF     : BOOL := TRUE;                                             // Supply mains undervoltage
+        SCF1    : BOOL := TRUE;                                             // Motor short circuit
+        SOF     : BOOL := TRUE;                                             // Motor overspeed
+        TNF     : BOOL := TRUE;                                             // Autotuning detected error
+        INF1    : BOOL := TRUE;                                             // Internal error 1 (Rating)
+        INF2    : BOOL := TRUE;                                             // Internal error 2 (Soft)
+        INF3    : BOOL := TRUE;                                             // Internal error 3 (Intern Comm)
+        INF4    : BOOL := TRUE;                                             // Internal error 4 (Manufacturing)
+        EEF2    : BOOL := TRUE;                                             // EEPROM power
+        SCF3    : BOOL := TRUE;                                             // Ground short circuit
+        OPF2    : BOOL := TRUE;                                             // Output phase loss
+        COF     : BOOL := TRUE;                                             // CANopen communication interruption
+        BLF     : BOOL := TRUE;                                             // Brake control
+        INF7    : BOOL := TRUE;                                             // Internal error 7 (Init)
+        EPF2    : BOOL := TRUE;                                             // External error detected by Fieldbus
+        INF8    : BOOL := TRUE;                                             // Internal error 8 (Switching Supply)
+        BRF     : BOOL := TRUE;                                             // Brake feedback
+        SLF2    : BOOL := TRUE;                                             // PC communication interruption
+        ECF     : BOOL := TRUE;                                             // Encoder coupling
+        SSF     : BOOL := TRUE;                                             // Torque limitation error
+        SLF3    : BOOL := TRUE;                                             // HMI communication interruption
+        INF9    : BOOL := TRUE;                                             // Internal error 9 (Measure)
+        INFA    : BOOL := TRUE;                                             // Internal error 10 (Mains)
+        INFB    : BOOL := TRUE;                                             // Internal error 11 (Temperature)
+        TJF     : BOOL := TRUE;                                             // IGBT overheating
+        SCF4    : BOOL := TRUE;                                             // IGBT short circuit
+        SCF5    : BOOL := TRUE;                                             // Motor short circuit
+        SRF     : BOOL := TRUE;                                             // Torque timeout
+        FCF1    : BOOL := TRUE;                                             // Output contactor closed error
+        FCF2    : BOOL := TRUE;                                             // Output contactor opened error
+        INFC    : BOOL := TRUE;                                             // Internal error 12 (Internal current supply)
+        ENF     : BOOL := TRUE;                                             // Encoder
+        LCF     : BOOL := TRUE;                                             // input contactor
+        BUF     : BOOL := TRUE;                                             // DB unit sh. circuit
+        INF6    : BOOL := TRUE;                                             // Internal error 6 (Option)
+        INFE    : BOOL := TRUE;                                             // Internal error 14 (CPU)
+        BOF     : BOOL := TRUE;                                             // Braking resistor overload
+        LFF3    : BOOL := TRUE;                                             // AI3 4-20mA loss
+        LFF4    : BOOL := TRUE;                                             // AI4 4-20mA loss
+        HCF     : BOOL := TRUE;                                             // Boards compatibility
+        DLF     : BOOL := TRUE;                                             // Dynamic load detected error
+        CFI2    : BOOL := TRUE;                                             // Configuration transfer error
+        LFF5    : BOOL := TRUE;                                             // AI5 4-20 mA loss
+        CSF     : BOOL := TRUE;                                             // Channel switching detected error
+        ULF     : BOOL := TRUE;                                             // Process Underload
+        OLC     : BOOL := TRUE;                                             // Process overload
+        ASF     : BOOL := TRUE;                                             // Angle error
+        LFF1    : BOOL := TRUE;                                             // AI1 4-20 mA loss
+        SAFF    : BOOL := TRUE;                                             // Safety function detected error
+        TH3F    : BOOL := TRUE;                                             // AI3 thermal level error
+        T3CF    : BOOL := TRUE;                                             // Thermal sensor error on AI3
+        PCPF    : BOOL := TRUE;                                             // Pump cycle start error 
+        TH4F    : BOOL := TRUE;                                             // AI4 thermal level error
+        T4CF    : BOOL := TRUE;                                             // Thermal sensor error on AI4
+        TH5F    : BOOL := TRUE;                                             // AI5 thermal level error
+        T5CF    : BOOL := TRUE;                                             // Thermal sensor error on AI5
+        PFMF    : BOOL := TRUE;                                             // PID feedback detected error
+        PGLF    : BOOL := TRUE;                                             // Program loading detected error
+        PGRF    : BOOL := TRUE;                                             // Program running detected error
+        INFG    : BOOL := TRUE;                                             // Internal error 16 (IO module - relay)
+        INFH    : BOOL := TRUE;                                             // Internal error 17 (IO module - Standard)
+        INF0    : BOOL := TRUE;                                             // Internal error 0 (IPC)
+        INFD    : BOOL := TRUE;                                             // Internal error 13 (Diff current)
+        STF     : BOOL := TRUE;                                             // Motor stall detected error
+        INFL    : BOOL := TRUE;                                             // Internal error 21 (RTC)
+        ETHF    : BOOL := TRUE;                                             // Embedded Ethernet communication interruption
+        INFF    : BOOL := TRUE;                                             // Internal error 15 (Flash)
+        FWER    : BOOL := TRUE;                                             // Firmware Update error
+        INFM    : BOOL := TRUE;                                             // Internal error 22 (Embedded Ethernet)
+        INFP    : BOOL := TRUE;                                             // Internal error 25 (Incompatibility CB & SW)
+        INFK    : BOOL := TRUE;                                             // Internal error 20 (option interface PCBA)
+        INFJ    : BOOL := TRUE;                                             // Internal error 19 (Encoder module)
+        INFR    : BOOL := TRUE;                                             // Internal error 27 (Diagnostics CPLD)
+        INFN    : BOOL := TRUE;                                             // Internal error 23 (Module link)
+        SCF6    : BOOL := TRUE;                                             // AFE ShortCircuit error
+        OBF2    : BOOL := TRUE;                                             // AFE Bus unbalancing 
+        INFS    : BOOL := TRUE;                                             // Internal error 28 (AFE)
+        IFA     : BOOL := TRUE;                                             // Monitoring circuit A error
+        IFB     : BOOL := TRUE;                                             // Monitoring circuit B error
+        IFC     : BOOL := TRUE;                                             // Monitoring circuit C error
+        IFD     : BOOL := TRUE;                                             // Monitoring circuit D error
+        CFA     : BOOL := TRUE;                                             // Cabinet circuit A error
+        CFB     : BOOL := TRUE;                                             // Cabinet circuit B error
+        CFC     : BOOL := TRUE;                                             // Cabinet circuit C error
+        TFA     : BOOL := TRUE;                                             // Motor winding A error
+        TFB     : BOOL := TRUE;                                             // Motor winding B error
+        TFC     : BOOL := TRUE;                                             // Motor bearing A error
+        TFD     : BOOL := TRUE;                                             // Motor bearing B error
+        CHF     : BOOL := TRUE;                                             // Cabinet overheat  error
+        URF     : BOOL := TRUE;                                             // AFE Mains undervoltage 
+        INFV    : BOOL := TRUE;                                             // Internal error 31 (Missing brick)
+        INFT    : BOOL := TRUE;                                             // Internal error 29 (Inverter)
+        INFU    : BOOL := TRUE;                                             // Internal error 30 (Rectifier)
+        TJF2    : BOOL := TRUE;                                             // AFE IGBT over-heat error
+        CRF3    : BOOL := TRUE;                                             // AFE contactor feedback error
+        CFI3    : BOOL := TRUE;                                             // Pre-settings transfer error
+        CBF     : BOOL := TRUE;                                             // Circuit breaker error
+        BUFO    : BOOL := TRUE;                                             // DB unit open circuit
+        TLOF    : BOOL := TRUE;                                             // Drive overload
+        MDLF    : BOOL := TRUE;                                             // MultiDrive Link error
+        TH1F    : BOOL := TRUE;                                             // AI1 thermal level error
+        T1CF    : BOOL := TRUE;                                             // Thermal sensor error on AI1
+        BSQF    : BOOL := TRUE;                                             // Backlash error
+        MSDF    : BOOL := TRUE;                                             // M/S device error
+        ACF1    : BOOL := TRUE;                                             // AFE modulation rate error
+        ACF2    : BOOL := TRUE;                                             // AFE current control error
+        MFF     : BOOL := TRUE;                                             // Mains frequency out of range
+        THEF    : BOOL := TRUE;                                             // Encoder module thermal level error
+        TECF    : BOOL := TRUE;                                             // Thermal sensor error on encoder module
+        CFI4    : BOOL := TRUE;                                             // Empty configuration
+        INFW    : BOOL := TRUE;                                             // Internal error 32 (Firmware Update)
+        BUHF    : BOOL := TRUE;                                             // BUO overheat error
+        BUOC    : BOOL := TRUE;                                             // BUO overcurrent error
+        FDR1    : BOOL := TRUE;                                             // FDR Eth embedded error
+        FDR2    : BOOL := TRUE;                                             // FDR Eth module error
+        MDF     : BOOL := TRUE;                                             // AFE bus reference error
+        P24C    : BOOL := TRUE;                                             // Cabinet I/O 24V missing error
+        DCRE    : BOOL := TRUE;                                             // DC Bus ripple error
+        IDLF    : BOOL := TRUE;                                             // Idle mode exit error
+        MDCF    : BOOL := TRUE;                                             // Load movement error
+        Res139  : BOOL := FALSE;                                            // Reserve
+        Res140  : BOOL := FALSE;                                            // Reserve
+        Res141  : BOOL := FALSE;                                            // Reserve
+        Res142  : BOOL := FALSE;                                            // Reserve
+        Res143  : BOOL := FALSE;                                            // Reserve
+    END_STRUCT;
+    LFTArray AT LFTMsgEn : ARRAY[0..143] OF BOOL;                           // For indexed access to LFTMsgEn parameters
+
+    MsgEvId {S7_visible := 'false';
+             S7_link    := 'false';
+             S7_param   := 'false';
+             S7_server  := 'alarm_archiv';
+             S7_a_type  := 'alarm_8p'} : DWORD := DW#16#00000000;           // Message number
+
+END_VAR
+(*
+---------------------------------------- Outputs ----------------------------------------
+*)
+VAR_OUTPUT
+    PZDOut1     { S7_visible := 'true' } : WORD := W#16#0000;               // Output word 1 - PZD1
+    PZDOut2     { S7_visible := 'true' } : WORD := W#16#0000;               // Output word 2 - PZD2
+    PZDOut3     { S7_visible := 'false' } : WORD := W#16#0000;              // Output word 3 - PZD3
+    PZDOut4     { S7_visible := 'false' } : WORD := W#16#0000;              // Output word 4 - PZD4
+    PZDOut5     { S7_visible := 'false' } : WORD := W#16#0000;              // Output word 5 - PZD5
+    PZDOut6     { S7_visible := 'false' } : WORD := W#16#0000;              // Output word 6 - PZD6
+    PZDOut7     { S7_visible := 'false' } : WORD := W#16#0000;              // Output word 7 - PZD7
+    PZDOut8     { S7_visible := 'false' } : WORD := W#16#0000;              // Output word 8 - PZD8
+    PZDOut9     { S7_visible := 'false' } : WORD := W#16#0000;              // Output word 9 - PZD9
+    PZDOut10    { S7_visible := 'false' } : WORD := W#16#0000;              // Output word 10 - PZD10
+    PZDOut11    { S7_visible := 'false' } : WORD := W#16#0000;              // Output word 11 - PZD11
+    PZDOut12    { S7_visible := 'false' } : WORD := W#16#0000;              // Output word 12 - PZD12
+    PZDOut13    { S7_visible := 'false' } : WORD := W#16#0000;              // Output word 13 - PZD13
+    PZDOut14    { S7_visible := 'false' } : WORD := W#16#0000;              // Output word 14 - PZD14
+    PZDOut15    { S7_visible := 'false' } : WORD := W#16#0000;              // Output word 15 - PZD15
+    PZDOut16    { S7_visible := 'false' } : WORD := W#16#0000;              // Output word 16 - PZD16
+
+    Bad         { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Good;                                          // Signal Status
+    END_STRUCT;                                                             // 1 = Bad connection status
+
+    ReadyOn     { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // 1 = Ready to switch on, awaiting power section line supply
+
+    ReadySwc    { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // 1 = Switched on, ready to run
+
+    Running     { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // 1 = Operation enabled, running
+
+    NoQuickStp  { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                           // Signal Status
+    END_STRUCT;                                                             // 0 = Quick stop
+
+    Fault       { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // 1 = Fault detected
+
+    Warning     { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // 1 = Warning active
+
+    VoltageOn   { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // 1 = Power part connected to supply mains
+
+    SupplyLck   { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // 1 = Switched on disabled, power section line supply locked
+
+    Remote      { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // 1 = Commands or reference via fieldbus
+
+    SP_Reached  { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // 1 = The reference has been reached
+
+    SP_LimOut   { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // 1 = The reference is not within the limits
+
+    StopKey     { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // 1 = Stop triggered by the STOP key on the graphic display terminal or the remote display terminal
+
+    Direction   { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // 0 = Forward rotation at output, 1 = Reverse rotation at output
+
+    ETARes08    { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // ETA reserved bit 8
+
+    ETARes12    { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // ETA reserved bit 12
+
+    ETARes13    { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // ETA reserved bit 13
+
+    CfgErr      { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // 1 = SEDrive block configuration error
+
+    MotFreq     { S7_visible := 'false' } : STRUCT
+        Value   : REAL := 0.0;                                              // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // Motor frequency [Hz]
+
+    MotCurr     { S7_visible := 'true' } : STRUCT
+        Value   : REAL := 0.0;                                              // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // Motor current [A]
+
+    MotTorq     { S7_visible := 'true' } : STRUCT
+        Value   : REAL := 0.0;                                              // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // Motor torque [%]
+
+    MotVolt     { S7_visible := 'false' } : STRUCT
+        Value   : REAL := 0.0;                                              // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // Motor voltage [V]
+
+    MotPower    { S7_visible := 'true' } : STRUCT
+        Value   : REAL := 0.0;                                              // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // Motor power [%]
+
+    MotVeloc    { S7_visible := 'false' } : STRUCT
+        Value   : REAL := 0.0;                                              // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // Motor velocity [rpm]
+
+    LogInput01  { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // LI1 logic input
+
+    LogInput02  { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // LI2 logic input
+
+    LogInput03  { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // LI3 logic input
+
+    LogInput04  { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // LI4 logic input
+
+    LogInput05  { S7_visible := 'true' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // LI5 logic input
+
+    LogInput06  { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // LI6 logic input
+
+    LogInput07  { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // LI7 logic input
+
+    LogInput08  { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // LI8 logic input
+
+    LogInput11  { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // LI11 logic input
+
+    LogInput12  { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // LI12 logic input
+
+    LogInput13  { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // LI13 logic input
+
+    LogInput14  { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // LI14 logic input
+
+    LogInput15  { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // LI15 logic input
+
+    LogInput16  { S7_visible := 'false' } : STRUCT
+        Value   : BOOL := FALSE;                                            // Value
+        ST      : BYTE := ST_Undf;                                          // Signal Status
+    END_STRUCT;                                                             // LI16 logic input
+
+    MsgErr {S7_visible := 'false';
+            S7_dynamic := 'true'} : BOOL := FALSE;                          // 1 = Messaging Error Occurs
+
+    MsgStat {S7_visible := 'false';
+             S7_dynamic := 'true'} : WORD := W#16#0000;                     // ALARM_8P: Status Output
+
+    MsgAckn {S7_visible := 'false';
+             S7_dynamic := 'true'} : WORD := W#16#0000;                     // ALARM_8P: ACK_STATE output
+
+END_VAR
+(*
+---------------------------------------- Stats ----------------------------------------
+*)
+VAR
+
+    sRun        : BOOL := FALSE;
+
+    sInput      : ARRAY[1..16] OF STRUCT
+        PZDVal  : WORD := W#16#0000;
+        PrmNum  : INT := 0;
+    END_STRUCT;
+
+    sOutput     : ARRAY[1..16] OF STRUCT
+        PZDVal  : WORD := W#16#0000;
+        PrmNum  : INT := 0;
+    END_STRUCT;
+
+    ATV_ALARMS  : ALARM_8P;
+
+END_VAR
+(*
+---------------------------------------- Temporals ----------------------------------------
+*)
+VAR_TEMP
+   
+    tPrmIdx     : INT;
+    tPZDAmnt    : INT;
+    tStatus     : BYTE;
+    tWord       : WORD;
+    tInt AT tWord : INT;
+    tBits AT tWord : ARRAY[0..15] OF BOOL;
+    tReal       : REAL;
+    tHMISAlmEn  : BOOL;
+    tLFTAlmEn   : BOOL;
+    tHMISAlmNum : WORD;
+    tLFTAlmNum  : WORD;
+    
+END_VAR
+(*
+---------------------------------------- Program ----------------------------------------
+*)
+BEGIN
+// Инициализируем некоторые переменные
+    CfgErr.Value := FALSE;
+    tPZDAmnt := 0;
+    tStatus := ST_Undf;
+
+// Определяем по номеру телеграммы количество входов-выходов
+    CASE Telegram OF
+        100     : tPZDAmnt := 2;
+        101,102 : tPZDAmnt := 6;
+        106     : tPZDAmnt := 8;
+        107     : tPZDAmnt := 16;
+    ELSE:                                                                   // Если номер телеграммы неизвестен:
+        CfgErr.Value := TRUE;                                               // - устанавливаем выход Ошибка конфигурации
+        PZDOut1 := W#16#0000;                                               // - останавливаем ПЧВ
+        PZDOut2 := W#16#0000;                                               // - обнуляем задание
+        RETURN;                                                             // - завершаем выполнение блока
+    END_CASE;
+
+// Получаем состоянии связи с ПЧ (0 = Связь ОК)
+    Bad.Value := RackF_In;
+
+    IF Bad.Value = TRUE THEN
+        IF Feature.Bit1 = FALSE THEN
+            FOR tPrmIdx := 1 TO 16 DO
+                sOutput[tPrmIdx].PZDVal := W#16#0000;
+            END_FOR;
+            
+        END_IF;
+    END_IF;
+
+// Копируем значения входов Altivar и назначенные логические адреса в массив для удобства перебора в цикле
+// Т.к. минимальное количество PZD = 2, начиная с телеграммы 100, то их обрабатываем в любом случае
+    sInput[1].PZDVal := PZDIn1;
+    sInput[2].PZDVal := PZDIn2;
+    sInput[1].PrmNum := PZDIn1_Prm;
+    sInput[2].PrmNum := PZDIn2_Prm;
+    sOutput[1].PrmNum := PZDOut1_Prm;
+    sOutput[2].PrmNum := PZDOut2_Prm;
+// PZD с 3 по 6 обрабатываем, если телеграмма как минимум 101
+    IF tPZDAmnt >= 6 THEN
+        sInput[3].PZDVal := PZDIn3;
+        sInput[4].PZDVal := PZDIn4;
+        sInput[5].PZDVal := PZDIn5;
+        sInput[6].PZDVal := PZDIn6;
+        sInput[3].PrmNum := PZDIn3_Prm;
+        sInput[4].PrmNum := PZDIn4_Prm;
+        sInput[5].PrmNum := PZDIn5_Prm;
+        sInput[6].PrmNum := PZDIn6_Prm;
+        sOutput[3].PrmNum := PZDOut3_Prm;
+        sOutput[4].PrmNum := PZDOut4_Prm;
+        sOutput[5].PrmNum := PZDOut5_Prm;
+        sOutput[6].PrmNum := PZDOut6_Prm;
+    ELSE
+        sInput[3].PZDVal := W#16#0000;
+        sInput[4].PZDVal := W#16#0000;
+        sInput[5].PZDVal := W#16#0000;
+        sInput[6].PZDVal := W#16#0000;
+        sInput[3].PrmNum := 0;
+        sInput[4].PrmNum := 0;
+        sInput[5].PrmNum := 0;
+        sInput[6].PrmNum := 0;
+        sOutput[3].PrmNum := 0;
+        sOutput[4].PrmNum := 0;
+        sOutput[5].PrmNum := 0;
+        sOutput[6].PrmNum := 0;
+    END_IF;
+// PZD с 7 по 8 обрабатываем, если телеграмма как минимум 106
+    IF tPZDAmnt >= 8 THEN
+        sInput[7].PZDVal := PZDIn7;
+        sInput[8].PZDVal := PZDIn8;
+        sInput[7].PrmNum := PZDIn7_Prm;
+        sInput[8].PrmNum := PZDIn8_Prm;
+        sOutput[7].PrmNum := PZDOut7_Prm;
+        sOutput[8].PrmNum := PZDOut8_Prm;
+    ELSE
+        sInput[7].PZDVal := W#16#0000;
+        sInput[8].PZDVal := W#16#0000;
+        sInput[7].PrmNum := 0;
+        sInput[8].PrmNum := 0;
+        sOutput[7].PrmNum := 0;
+        sOutput[8].PrmNum := 0;
+
+    END_IF;
+// PZD с 9 по 16 обрабатываем, если телеграмма 107
+    IF tPZDAmnt = 16 THEN
+        sInput[9].PZDVal := PZDIn9;
+        sInput[10].PZDVal := PZDIn10;
+        sInput[11].PZDVal := PZDIn11;
+        sInput[12].PZDVal := PZDIn12;
+        sInput[13].PZDVal := PZDIn13;
+        sInput[14].PZDVal := PZDIn14;
+        sInput[15].PZDVal := PZDIn15;
+        sInput[16].PZDVal := PZDIn16;
+        sInput[9].PrmNum := PZDIn9_Prm;
+        sInput[10].PrmNum := PZDIn10_Prm;
+        sInput[11].PrmNum := PZDIn11_Prm;
+        sInput[12].PrmNum := PZDIn12_Prm;
+        sInput[13].PrmNum := PZDIn13_Prm;
+        sInput[14].PrmNum := PZDIn14_Prm;
+        sInput[15].PrmNum := PZDIn15_Prm;
+        sInput[16].PrmNum := PZDIn16_Prm;
+        sOutput[9].PrmNum := PZDOut9_Prm;
+        sOutput[10].PrmNum := PZDOut10_Prm;
+        sOutput[11].PrmNum := PZDOut11_Prm;
+        sOutput[12].PrmNum := PZDOut12_Prm;
+        sOutput[13].PrmNum := PZDOut13_Prm;
+        sOutput[14].PrmNum := PZDOut14_Prm;
+        sOutput[15].PrmNum := PZDOut15_Prm;
+        sOutput[16].PrmNum := PZDOut16_Prm;
+    ELSE
+        sInput[9].PZDVal := W#16#0000;
+        sInput[10].PZDVal := W#16#0000;
+        sInput[11].PZDVal := W#16#0000;
+        sInput[12].PZDVal := W#16#0000;
+        sInput[13].PZDVal := W#16#0000;
+        sInput[14].PZDVal := W#16#0000;
+        sInput[15].PZDVal := W#16#0000;
+        sInput[16].PZDVal := W#16#0000;
+        sInput[9].PrmNum := 0;
+        sInput[10].PrmNum := 0;
+        sInput[11].PrmNum := 0;
+        sInput[12].PrmNum := 0;
+        sInput[13].PrmNum := 0;
+        sInput[14].PrmNum := 0;
+        sInput[15].PrmNum := 0;
+        sInput[16].PrmNum := 0;
+        sOutput[9].PrmNum := 0;
+        sOutput[10].PrmNum := 0;
+        sOutput[11].PrmNum := 0;
+        sOutput[12].PrmNum := 0;
+        sOutput[13].PrmNum := 0;
+        sOutput[14].PrmNum := 0;
+        sOutput[15].PrmNum := 0;
+        sOutput[16].PrmNum := 0;
+    END_IF;
+
+// Обрабатываем все входы от Altivar во внутренние переменные
+    FOR tPrmIdx := 1 TO tPZDAmnt DO
+        tWord := sInput[tPrmIdx].PZDVal;
+        tReal := DINT_TO_REAL(WORD_TO_DINT(tWord));
+        CASE sInput[tPrmIdx].PrmNum OF
+            3201  :                                                         // State register (ETA)
+                ReadyOn.Value := tBits[8];
+                ReadyOn.ST := ST_Good;
+                ReadySwc.Value := tBits[9];
+                ReadySwc.ST := ST_Good;
+                Running.Value := tBits[10];
+                Running.ST := ST_Good;
+                Fault.Value := tBits[11];
+                Fault.ST := ST_Good;
+                VoltageOn.Value := tBits[12];
+                VoltageOn.ST := ST_Good;
+                NoQuickStp.Value := tBits[13];
+                NoQuickStp.ST := ST_Good;
+                SupplyLck.Value := tBits[14];
+                SupplyLck.ST := ST_Good;
+                Warning.Value := tBits[15];
+                Warning.ST := ST_Good;
+                ETARes08.Value := tBits[0];
+                ETARes08.ST := ST_Undf;
+                Remote.Value := tBits[1];
+                Remote.ST := ST_Good;
+                SP_Reached.Value := tBits[2];
+                SP_Reached.ST := ST_Good;
+                SP_LimOut.Value := tBits[3];
+                SP_LimOut.ST := ST_Good;
+                ETARes12.Value := tBits[4];
+                ETARes12.ST := ST_Undf;
+                ETARes13.Value := tBits[5];
+                ETARes13.ST := ST_Undf;
+                StopKey.Value := tBits[6];
+                StopKey.ST := ST_Good;
+                Direction.Value := tBits[7];
+                Direction.ST := ST_Good;
+            3202  :                                                         // Motor frequency (RFR)
+                MotFreq.Value := tReal * ScaleUnits.MotFreq;
+                MotFreq.ST := ST_Good;
+            3204  :                                                         // Motor current (LCR)
+                MotCurr.Value := tReal * ScaleUnits.MotCurr;
+                MotCurr.ST := ST_Good;
+            3205  :                                                         // Motor torque (OTR)
+                MotTorq.Value := tReal * ScaleUnits.MotTorq;
+                MotTorq.ST := ST_Good;
+            3208  :                                                         // Motor voltage (UOP)
+                MotVolt.Value := tReal * ScaleUnits.MotVolt;
+                MotVolt.ST := ST_Good;
+            3211  :                                                         // Motor power (OPR)
+                MotPower.Value := tReal * ScaleUnits.MotPowr;
+                MotPower.ST := ST_Good;
+            3240  :                                                         // Drive state (HMIS)
+                tHMISAlmEn := HMISArray[tInt];
+                tHMISAlmNum := tWord;
+            5202  :                                                         // Logic input states (IL1R)
+                LogInput01.Value := tBits[8];
+                LogInput01.ST := ST_Good;
+                LogInput02.Value := tBits[9];
+                LogInput02.ST := ST_Good;
+                LogInput03.Value := tBits[10];
+                LogInput03.ST := ST_Good;
+                LogInput04.Value := tBits[11];
+                LogInput04.ST := ST_Good;
+                LogInput05.Value := tBits[12];
+                LogInput05.ST := ST_Good;
+                LogInput06.Value := tBits[13];
+                LogInput06.ST := ST_Good;
+                LogInput07.Value := tBits[14];
+                LogInput07.ST := ST_Good;
+                LogInput08.Value := tBits[15];
+                LogInput08.ST := ST_Good;
+                LogInput11.Value := tBits[2];
+                LogInput11.ST := ST_Good;
+                LogInput12.Value := tBits[3];
+                LogInput12.ST := ST_Good;
+                LogInput13.Value := tBits[4];
+                LogInput13.ST := ST_Good;
+                LogInput14.Value := tBits[5];
+                LogInput14.ST := ST_Good;
+                LogInput15.Value := tBits[6];
+                LogInput15.ST := ST_Good;
+                LogInput16.Value := tBits[7];
+                LogInput16.ST := ST_Good;
+            7121  :                                                         // Last error occured (LFT)
+                tLFTAlmEn := LFTArray[tInt] AND Fault.Value;
+                tLFTAlmNum := tWord;
+            8604  :                                                         // Output velocity (RFRD)
+                MotVeloc.Value := tReal;
+                MotVeloc.ST := ST_Good;
+            0     :
+                EXIT;
+        END_CASE;
+
+    END_FOR;
+
+// Л - Логика
+
+    ATV_ALARMS(EN_R := NOT MsgLock.Value
+              ,SIG_1 := tHMISAlmEn
+              ,SIG_2 := tLFTAlmEn
+              ,ID := W#16#EEEE
+              ,EV_ID := MsgEvId
+              ,SD_1 := tHMISAlmNum
+              ,SD_2 := tLFTAlmNum
+              ); 
+    MsgErr  := ATV_ALARMS.ERROR;
+    MsgStat := ATV_ALARMS.STATUS;
+    MsgAckn := ATV_ALARMS.ACK_STATE;
+
+// Обрабатываем все внутренние переменные в выходы на Altivar
+    FOR tPrmIdx := 1 TO tPZDAmnt DO
+        CASE sOutput[tPrmIdx].PrmNum OF
+            8501 :
+
+                IF Feature.Bit0 = FALSE THEN
+                    tBits[8] := Run.Value;                    
+                    tBits[9] := AuthSup.Value;
+                ELSE
+                    tBits[8] := RunAuth.Value;
+                    tBits[9] := Run.Value;
+                END_IF;
+                tBits[10] := QuickStp.Value;
+                tBits[11] := EnOp.Value;
+                tBits[12] := CMDRes04.Value;                                 // Reserved in ATV
+                tBits[13] := CMDRes05.Value;                                 // Reserved in ATV
+                tBits[14] := CMDRes06.Value;                                 // Reserved in ATV
+                tBits[15] := Reset.Value;
+                tBits[0] := HaltStop.Value;
+                tBits[1] := CMDRes09.Value;                                 // Reserved in ATV
+                tBits[2] := CMDRes10.Value;                                // Reserved in ATV
+                tBits[3] := CMDRes11.Value;                                // Reserved in ATV
+                tBits[4] := CMDRes12.Value;                                // Reserved in ATV
+                tBits[5] := CMDRes13.Value;                                // Reserved in ATV
+                tBits[6] := CMDRes14.Value;                                // Reserved in ATV
+                tBits[7] := CMDRes15.Value;                                // Reserved in ATV
+            8502 : 
+                tReal := (SP_Li.Value - SP_LiScale.Low) / (SP_LiScale.High - SP_LiScale.Low) * 50.0 / ScaleUnits.RefFreq;
+                tWord := DINT_TO_WORD(REAL_TO_DINT(tReal));
+                IF InvSP.Value THEN
+                    tInt := -tInt;
+                END_IF;
+            8602 : 
+                tReal := (SP_Li.Value - SP_LiScale.Low) / (SP_LiScale.High - SP_LiScale.Low) * 32767.0;
+                tWord := DINT_TO_WORD(REAL_TO_DINT(tReal));
+            0    :
+                EXIT;
+        END_CASE;
+        IF Bad.Value = TRUE AND Feature.Bit1 = FALSE THEN                   // Если нет связи и FeatureBit требует сбрасывать значения в 0 -
+            tWord := W#16#0000;                                             // - обнуляем
+        END_IF;
+        sOutput[tPrmIdx].PZDVal := tWord;                                   // Записываем то, что насчитали в CASE
+    END_FOR;
+
+    sRun := Run.Value;
+
+    PZDOut1 := sOutput[1].PZDVal;
+    PZDOut2 := sOutput[2].PZDVal;
+    IF tPZDAmnt >= 6 THEN
+        PZDOut3 := sOutput[3].PZDVal;
+        PZDOut4 := sOutput[4].PZDVal;
+        PZDOut5 := sOutput[5].PZDVal;
+        PZDOut6 := sOutput[6].PZDVal;
+    END_IF;
+    IF tPZDAmnt >= 8 THEN
+        PZDOut7 := sOutput[7].PZDVal;
+        PZDOut8 := sOutput[8].PZDVal;
+    END_IF;
+    IF tPZDAmnt = 16 THEN
+        PZDOut9 := sOutput[9].PZDVal;
+        PZDOut10 := sOutput[10].PZDVal;
+        PZDOut11 := sOutput[11].PZDVal;
+        PZDOut12 := sOutput[12].PZDVal;
+        PZDOut13 := sOutput[13].PZDVal;
+        PZDOut14 := sOutput[14].PZDVal;
+        PZDOut15 := sOutput[15].PZDVal;
+        PZDOut16 := sOutput[16].PZDVal;
+    END_IF;
+
+END_FUNCTION_BLOCK
