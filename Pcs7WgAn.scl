@@ -1,0 +1,218 @@
+FUNCTION_BLOCK Pcs7WgAn
+    TITLE = 'Analog input driver for WAGO AI'
+    VERSION: '0.4'
+    AUTHOR: RoVRy
+    NAME: Pcs7WgAn
+    FAMILY: Channel
+    KNOW_HOW_PROTECT
+    
+//============================================================================================================================================================
+// Блок констант статусов сигналов
+//============================================================================================================================================================
+CONST
+
+    ST_BDR  := 16#00;
+    ST_BPR  := 16#28;
+    ST_Sim  := 16#60;
+    ST_UDR  := 16#68;
+    ST_UPR  := 16#78;
+    ST_Good := 16#80;
+    ST_Mnt  := 16#A4;
+    ST_Unk  := 16#FF;    
+
+END_CONST
+
+//============================================================================================================================================================
+// Входные параметры
+//============================================================================================================================================================
+VAR_INPUT
+    PV_In { S7_dynamic := 'true' }      : WORD := W#16#0000;            // Input value
+
+    Scale       : STRUCT
+        High    : REAL := 100.0;                                        // High value
+        Low     : REAL := 0.0;                                          // Low value
+    END_STRUCT;                                                         // Range of process value
+
+    PV_InUnit   : INT := 1001;                                          // Unit of process value;
+    
+    SimOn  { S7_dynamic := 'true' }     : STRUCT
+        Value   : BOOL := FALSE;                                        // Value
+        ST      : BYTE := B#16#80;                                      // Status signal
+    END_STRUCT;                                                         // 1=Simulation active
+
+    SimPV_In { S7_dynamic := 'true' }   : STRUCT
+        Value   : REAL := 0.0;                                          // Value
+        ST      : BYTE := B#16#80;                                      // Signal status
+    END_STRUCT;                                                         // Simulation value
+    
+    SubsPV_In { S7_dynamic := 'true' }  : STRUCT
+        Value   : REAL := 0.0;                                          // Value
+        ST      : BYTE := B#16#80;                                      // Signal status
+    END_STRUCT;                                                         // Substitution value
+
+    Watchdog { S7_dynamic := 'true' }   : STRUCT
+        Value   : BOOL := FALSE;                                        // Value
+        ST      : BYTE := B#16#80;                                      // Status signal
+    END_STRUCT;                                                         // 1=Watchdog active, link OK
+
+    Feature { S7_visible := 'false' }   : STRUCT
+        Bit0    : BOOL := FALSE;                                        // Reserved
+        Bit1    : BOOL := FALSE;                                        // Reserved
+        Bit2    : BOOL := FALSE;                                        // Reserved
+        Bit3    : BOOL := FALSE;                                        // Reserved
+        Bit4    : BOOL := FALSE;                                        // Reserved
+        Bit5    : BOOL := FALSE;                                        // Reserved
+        Bit6    : BOOL := FALSE;                                        // Reserved
+        Bit7    : BOOL := FALSE;                                        // Reserved
+        Bit8    : BOOL := FALSE;                                        // Reserved
+        Bit9    : BOOL := FALSE;                                        // Reserved
+        Bit10   : BOOL := FALSE;                                        // Reserved
+        Bit11   : BOOL := FALSE;                                        // Reserved
+        Bit12   : BOOL := FALSE;                                        // Reserved
+        Bit13   : BOOL := FALSE;                                        // Reserved
+        Bit14   : BOOL := FALSE;                                        // Reserved
+        Bit15   : BOOL := FALSE;                                        // Reserved
+        Bit16   : BOOL := FALSE;                                        // Reserved
+        Bit17   : BOOL := FALSE;                                        // Reserved
+        Bit18   : BOOL := FALSE;                                        // Reserved
+        Bit19   : BOOL := FALSE;                                        // Reserved
+        Bit20   : BOOL := FALSE;                                        // Reserved
+        Bit21   : BOOL := FALSE;                                        // Reserved
+        Bit22   : BOOL := FALSE;                                        // Reserved
+        Bit23   : BOOL := FALSE;                                        // Reserved
+        Bit24   : BOOL := FALSE;                                        // Reserved
+        Bit25   : BOOL := FALSE;                                        // Reserved
+        Bit26   : BOOL := FALSE;                                        // Reserved
+        Bit27   : BOOL := FALSE;                                        // Reserved
+        Bit28   : BOOL := FALSE;                                        // Reserved
+        Bit29   : BOOL := FALSE;                                        // 1 = Substitute value
+        Bit30   : BOOL := FALSE;                                        // 1 = Hold last value
+        Bit31   : BOOL := FALSE;                                        // Reserved
+    END_STRUCT;                                                         // Status of various features
+
+END_VAR
+
+// ============================================================================================================================================================
+// Выходные параметры
+// ============================================================================================================================================================
+VAR_OUTPUT
+
+    Bad { S7_dynamic := 'true' }        : STRUCT
+        Value   : BOOL := FALSE;                                        // Value
+        ST      : BYTE := ST_Good;                                      // Status signal
+    END_STRUCT;                                                         // 1=Bad process value
+
+    PV_Out { S7_dynamic := 'true' }     : STRUCT
+        Value   : REAL := 0.0;                                          // Value
+        ST      : BYTE := ST_Good;                                      // Signal status
+    END_STRUCT;                                                         // Process value incl. ST
+    
+    PV_OutUnit                          : INT := 0;                     // Unit of process value
+    
+    ScaleOut                            : STRUCT
+        High    : REAL := 100.0;                                        // High value
+        Low     : REAL := 0.0;                                          // Low value
+    END_STRUCT;                                                         // Range of process value
+
+    PV_HiAct { S7_dynamic := 'true' }   : STRUCT
+        Value   : BOOL := FALSE;                                        // Value
+        ST      : BYTE := ST_Good;                                      // Signal status
+    END_STRUCT;                                                         // 1=Input value high limit failure
+
+    PV_LoAct { S7_dynamic := 'true' }   : STRUCT
+        Value   : BOOL := FALSE;                                        // Value
+        ST      : BYTE := ST_Good;                                      // Signal status
+    END_STRUCT;                                                         // 1=Input value low limit failure
+
+    SimAct { S7_dynamic := 'true' }     : STRUCT
+        Value   : BOOL := FALSE;                                        // Value
+        ST      : BYTE := ST_Good;                                      // Signal status
+    END_STRUCT;                                                         // 1=Simulation active
+
+    Signal { S7_visible := 'false' }    : WORD := W#16#0000;            // WAGO Signal value
+    Status { S7_visible := 'false' }    : WORD := W#16#0000;            // WAGO Statuses
+
+END_VAR
+
+// ============================================================================================================================================================
+// Статические параметры
+// ============================================================================================================================================================
+VAR
+    
+    sPrPV       : REAL;
+    
+END_VAR
+
+// ============================================================================================================================================================
+// Временные параметры
+// ============================================================================================================================================================
+VAR_TEMP
+
+    tAnyErr                             : BOOL;
+    tBad                                : BOOL;
+    twACP                               : WORD;
+    twStatus                            : WORD;
+    tbStatus AT twStatus                : ARRAY[0..15] OF BOOL;
+    tOut                                : STRUCT
+        Value                           : REAL;
+        ST                              : BYTE;
+    END_STRUCT;
+    tPVLoST                             : BYTE;
+    tPVHiST                             : BYTE;
+
+
+END_VAR
+
+// ============================================================================================================================================================
+// Код
+// ============================================================================================================================================================
+BEGIN
+
+    ScaleOut := Scale;                                                                                  // Всегда безусловно выдаём заданную шкалу
+    PV_OutUnit := PV_InUnit;                                                                            // Всегда безусловно выдаём заданную ед.изм.
+    SimAct := SimOn;                                                                                    // Всегда безусловно выдаём состояние симуляции
+    Bad.ST := ST_Good;
+    tPVLoST := ST_Good;
+    tPVHiST := ST_Good;
+    
+    twStatus := PV_In AND W#16#0007;                                                                    // Маскируем 3 младших диагностических бита xFU
+    twACP := SHR(IN := PV_In, N := 3);                                                                  // Получаем чистый код АЦП без диагностики
+
+    tOut.Value := INT_TO_REAL(WORD_TO_INT(twACP)) * (Scale.High - Scale.Low) / 4095.0 + Scale.Low;      // Считаем временное значение
+    tOut.ST := ST_Good;                                                                                 // и устанавливаем пока хороший статус
+
+    PV_LoAct.Value := tbStatus[8];                                                                      // Если диагностический Bit0 = 1, то WAGO говорит, что у нас сигнал < 4 мА
+    PV_HiAct.Value := tbStatus[9];                                                                      // Если диагностический Bit1 = 1, то WAGO говорит, что у нас сигнал > 20 мА
+
+    tAnyErr := tbStatus[8] OR tbStatus[9];                                                              // Формируем бит зашкала
+    tBad := tbStatus[8] AND tbStatus[9] OR NOT Watchdog.Value;                                          // Если оба диагностических бита взведены или нет связи - у нас WireBreak / Нет связи
+
+    IF Feature.Bit30 AND tAnyErr THEN                                                                   // Если при ошибке канала надо держать последнее хорошее значение - 
+        tOut.Value := sPrPV;                                                                            // - оставляем для выхода то, что было цикл назад
+    END_IF;
+    
+    IF Feature.Bit29 AND tAnyErr THEN                                                                   // При зашкаливании и включенной фиче подстановки
+        tOut.Value := SubsPV_In.Value;                                                                  // Итоговым значением будет подстановочное...
+        tOut.ST := ST_UDR;                                                                              // ...со статусом Undefined Device Related (UDR)
+    END_IF;
+
+    IF tBad THEN                                                                                        // Если проблема с каналом или со связью, то оба лимита и само значение помечаем как UDR
+        tPVLoST := ST_UDR;
+        tPVHiST := ST_UDR;
+        tOut.ST := ST_UDR;
+    END_IF;
+
+    IF SimOn.Value THEN                                                                                 // При включенной симуляции
+        tOut.Value := SimPV_In.Value;                                                                   // Итоговым значением будет симуляционное...
+        tOut.ST := ST_Sim;                                                                              // ...со статусом Simulation
+    END_IF;
+
+    Signal := twACP;
+    Status := twStatus;
+    sPrPV := tOut.Value;                                                                                // Запоминаем итоговое значение для следующего вызова
+    PV_LoAct.ST := tPVLoST;
+    PV_HiAct.ST := tPVHiST;
+    Bad.Value := tBad;
+    PV_Out := tOut;                                                                                     // Копируем итоговое значение и статус в выход
+    
+END_FUNCTION_BLOCK
