@@ -1,9 +1,9 @@
 FUNCTION_BLOCK FB614
-TITLE = 'Hold real value'
+TITLE = 'Hold bool value'
 VERSION: '0.9'
 AUTHOR: RoVRy
-NAME: HoldReal
-FAMILY: LogicAn
+NAME: HoldBool
+FAMILY: LogicDi
 
 VAR_INPUT
 
