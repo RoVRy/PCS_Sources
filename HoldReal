@@ -1,0 +1,143 @@
+FUNCTION_BLOCK FB613
+TITLE = 'Hold real value'
+VERSION: '0.9'
+AUTHOR: RoVRy
+NAME: HoldReal
+FAMILY: LogicAn
+
+VAR_INPUT
+
+    In { S7_visible := 'true';
+         S7_dynamic := 'true' }         : STRUCT
+        Value   : REAL := 0.0;                              // Signal value
+        ST      : BYTE := 16#FF;                            // Signal status
+    END_STRUCT;                                             // Value input
+
+    Hold_En { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+        Value   : BOOL := FALSE;                            // Signal value
+        ST      : BYTE := 16#FF;                            // Signal status
+    END_STRUCT;                                             // 1 = Enable hold the last value
+    
+    Hold_Ti { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+        Value   : REAL := 0.0;                              // Signal value
+        ST      : BYTE := 16#FF;                            // Signal status
+    END_STRUCT;                                             // Time [s] to hold the last value (0s = forever)
+
+    SampleTime  { S7_visible := 'false';
+                  S7_sampletime := 'true';
+                  S7_link := 'false'}   : REAL := 0.1;      // Sample time, assigned by PCS
+
+END_VAR
+
+VAR_OUTPUT
+
+    Out { S7_visible := 'true';
+          S7_dynamic := 'true' }        : STRUCT
+        Value   : REAL;                                     // Signal value
+        ST      : BYTE;                                     // Signal status
+    END_STRUCT;                                             // Value output equal to Input if Hold_En = 0, otherwise holded
+    
+    HoldAct { S7_visible := 'true';
+              S7_dynamic := 'true' }   : STRUCT
+        Value   : BOOL;                                     // Signal value
+        ST      : BYTE;                                     // Signal status
+    END_STRUCT;                                             // 1 = Holding is active
+
+    TiRemain { S7_visible := 'true';
+               S7_dynamic := 'true' }   : STRUCT
+        Value   : REAL;                                     // Signal value
+        ST      : BYTE;                                     // Signal status
+    END_STRUCT;                                             // Time to remain to hold the value
+
+END_VAR
+
+VAR_TEMP
+    trValue     : REAL;                                     // Временное значение до вывода в Out
+    tbHoldRaise : BOOL;                                     // Определяем передний фронт изменения Hold_En
+    tbHoldFall  : BOOL;                                     // Определяем задний фронт изменения Hold_En
+END_VAR
+
+VAR
+    sbFirstRun  : BOOL := TRUE;
+    sbHoldPrev  : BOOL := FALSE;
+    srHolded    : REAL := 0.0;
+    sbHold      : BOOL := FALSE;
+    siNumHldCyc : DINT := 0;
+    siCurHldCyc : DINT := 0;
+END_VAR
+
+BEGIN
+// Операции при самом первом вызове блока
+// ----------------------------------------------------------------------------
+    IF sbFirstRun = TRUE THEN
+        sbFirstRun := FALSE;
+        sbHoldPrev := FALSE;
+        sbHold := FALSE;
+        tbHoldRaise := FALSE;
+        tbHoldFall := FALSE;
+        trValue := In.Value;
+        srHolded := 0.0;
+        siCurHldCyc := 0;
+    END_IF;        
+// ----------------------------------------------------------------------------
+
+
+// Операции в начале каждого цикла
+// ----------------------------------------------------------------------------
+    IF Hold_Ti.Value >= SampleTime THEN
+        siNumHldCyc := REAL_TO_DINT(Hold_Ti.Value / SampleTime);
+    ELSE
+        Hold_Ti.Value := 0.0;
+        siNumHldCyc := 0;
+    END_IF;
+
+    tbHoldRaise := (NOT sbHoldPrev) AND Hold_En.Value;                          // Детектим изменение Hold_En 0->1
+    tbHoldFall  := sbHoldPrev AND (NOT Hold_En.Value);                          // Детектим изменение Hold_En 1->0
+// ----------------------------------------------------------------------------
+
+
+// Операции при изменении Hold_En
+// ----------------------------------------------------------------------------
+    IF sbHold = FALSE THEN                                                      // Если удержание было выключено:
+        IF tbHoldRaise THEN                                                         // Если было включение режима
+            trValue := srHolded;                                                        // Временный выход = удержанному значению (предыдущий цикл)
+            sbHold := TRUE;                                                             // Активируем режим удержания
+        ELSE                                                                        // Если не было изменения режима
+            trValue := In.Value;                                                        // На временный выход выдаём текущий вход
+            siCurHldCyc := 0;                                                           // Цикл удержания обнулён
+            TiRemain.Value := Hold_Ti.Value;                                            // Время удержания ициализировано
+        END_IF;
+    ELSE                                                                        // Если удержание было включено:
+        IF tbHoldFall THEN                                                          // Если было отключение режима
+            trValue := In.Value;                                                        // На временный выход выдаём текущий вход
+            siCurHldCyc := 0;                                                           // Счётчик циклов удержания обнулён
+            TiRemain.Value := Hold_Ti.Value;                                            // Время удержания ициализировано
+            sbHold := FALSE;
+        ELSE                                                                        // Если не было изменения режима
+            trValue := srHolded;                                                        // Продолжаем выдавать удержанное значение
+            IF siNumHldCyc <> 0 THEN                                                    // Если время удержания не равно 0 (не бесконечно)
+                TiRemain.Value := TiRemain.Value - SampleTime;                              // Уменьшаем таймер
+                siCurHldCyc := siCurHldCyc + 1;                                             // Увеличиваем счётчик циклов удержания
+                IF siCurHldCyc >= siNumHldCyc THEN                                          // Если счётчик циклов дошёл времени удержания
+                    sbHold := FALSE;                                                            // Сбрасываем режим удержания
+                END_IF;
+            END_IF;
+        END_IF;
+    END_IF;
+// ----------------------------------------------------------------------------
+
+
+// Операции в конце каждого цикла
+// ----------------------------------------------------------------------------
+    Out.Value := trValue;
+    srHolded := trValue;
+    Out.ST := In.ST;
+    HoldAct.Value := sbHold;
+    HoldAct.ST := Hold_En.ST;
+    TiRemain.ST := Hold_Ti.ST;
+    sbHoldPrev := Hold_En.Value;
+// ----------------------------------------------------------------------------
+
+END_FUNCTION_BLOCK
