@@ -1,0 +1,191 @@
+FUNCTION_BLOCK APC_InOut
+    { S7_m_c := 'true' }
+    TITLE = 'Signals exchange with Honeywell APC'
+    VERSION: '0.13'
+    AUTHOR: RoVRy
+    NAME: APC_InOut
+    FAMILY: SG_OPC
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+VAR_INPUT
+
+    APC_Op      { S7_visible := 'true';
+                  S7_m_c := 'true' }        : BOOL := FALSE;                // Enable/Disable APC from HMI
+
+    APC_Li      { S7_visible := 'true';
+                  S7_m_c := 'true' }        : INT := 0;                     // Enable/Disable APC from Honeywell: 0 = w/o change; 1 = Off; 2 = On;
+
+    AutAct_In   { S7_visible := 'true';
+                  S7_m_c := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;' } : STRUCT
+        Value : BOOL := FALSE;
+        ST : BYTE := B#16#FF;
+    END_STRUCT;                                                             // Interconnect from PID AutAct to APC
+
+    Reg_Mode    { S7_visible := 'true';
+                  S7_m_c := 'true';
+                  S7_link := 'false';
+                  S7_string_0 := 'OPER';
+                  S7_string_1 := 'RMPC' }   : BOOL := FALSE;                // APC regulator mode
+
+    SP_ExtAct   { S7_visible := 'true';
+                  S7_m_c := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;' } : STRUCT
+        Value : BOOL := FALSE;
+        ST : BYTE := B#16#FF;
+    END_STRUCT;                                                             // Interconnect from PID SP_ExtAct to APC
+
+    SP_Int      { S7_visible := 'true';
+                  S7_m_c := 'true' }        : REAL := 0.0;                  // Interconnect from PID SP_IntOut
+    
+    SP_Ext      { S7_visible := 'true';
+                  S7_m_c := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;' } : STRUCT
+        Value : REAL := 0.0;
+        ST : BYTE := B#16#FF;
+    END_STRUCT;                                                             // Interconnect SP from external logic
+        
+    SP_APC      { S7_visible := 'true';
+                  S7_m_c := 'true';
+                  S7_link := 'false' }      : REAL := 0.0;                  // SP tag from APC
+
+    SP_LoLim    { S7_visible := 'true';
+                  S7_m_c := 'true' }        : REAL := 0.0;                  // SP low limit from operator to APC
+
+    SP_HiLim    { S7_visible := 'true';
+                  S7_m_c := 'true' }        : REAL := 0.0;                  // SP high limit from operator to APC
+
+    MV_In       { S7_visible := 'true';
+                  S7_m_c := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;' } : STRUCT
+        Value : REAL := 0.0;
+        ST : BYTE := B#16#FF;
+    END_STRUCT;                                                             // Interconnect MV from PID
+
+    Watchdog    { S7_visible := 'true';
+                  S7_m_c := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;' } : STRUCT
+        Value : BOOL := FALSE;
+        ST : BYTE := B#16#FF;
+    END_STRUCT;                                                             // APS watchdog input, 1 = Connection OK
+    
+END_VAR
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+VAR_OUTPUT
+    
+    APC_Act     { S7_visible := 'true';
+                  S7_m_c := 'true' }            : BOOL := FALSE;            // APC is active
+
+    SP_LiOp     { S7_visible := 'true' }        : BOOL := FALSE;            // SP_LiOp signal for PID block
+
+    SP_ExtLi    { S7_visible := 'true' }        : BOOL := FALSE;            // SP_ExtLi signal for PID block
+
+    SP_IntLi    { S7_visible := 'true' }        : BOOL := FALSE;            // SP_IntLi signal for PID block
+
+    SP_ExtOut   { S7_visible := 'true';
+                  S7_m_c := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;' }     : STRUCT
+        Value : REAL := 0.0;
+        ST : BYTE := B#16#FF;
+    END_STRUCT;                                                             // External setpoint for PID block
+
+    SP_Fut      { S7_visible := 'true';
+                  S7_m_c := 'true' }            : REAL := 0.0;              // Future value from APC
+
+    MV_TrkOn    { S7_visible := 'true' }        : BOOL := FALSE;            // MV tracking on from APC
+
+    MV_Out      { S7_visible := 'true';
+                  S7_m_c := 'true' }            : REAL;                     // MV from APC or from PID
+
+    MV_Step     { S7_visible := 'true';
+                  S7_m_c := 'true' }            : REAL;                     // APC MV current step
+
+END_VAR
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+VAR
+
+    sAPC_En     : BOOL := FALSE;
+    stAPC_En    : BOOL := FALSE;
+
+END_VAR
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+BEGIN
+
+// Determining APC mode
+// 1 = APC switched off
+// 2 = APC switched on
+// 0 and others = Nothing to do, keeping last mode
+    CASE APC_Li OF
+        1 :
+            sAPC_En := FALSE;
+        2 :
+            sAPC_En := TRUE;
+    END_CASE;
+
+    sAPC_En := sAPC_En AND Watchdog.Value;
+
+    IF sAPC_En THEN
+        IF NOT SP_ExtAct.Value THEN
+            SP_ExtOut.Value := SP_Int;
+            SP_ExtOut.ST := B#16#80;
+        ELSE
+            SP_ExtOut.Value := SP_APC;
+            SP_ExtOut.ST := B#16#80;
+        END_IF;
+    END_IF;
+
+// APC enable front trigger        
+    IF sAPC_En AND NOT stAPC_En THEN
+        SP_APC := SP_Int;
+        SP_LiOp := TRUE;
+        SP_ExtLi := TRUE;
+    END_IF;
+
+// APC enabled (at least 2nd cycle)
+    IF sAPC_En AND stAPC_En THEN
+        SP_ExtOut.Value := SP_APC;
+        SP_ExtOut.ST := B#16#80;
+        SP_LiOp := FALSE;
+        SP_ExtLi := FALSE;        
+    END_IF;
+
+// APC disable front trigger        
+    IF NOT sAPC_En AND stAPC_En THEN
+        SP_LiOp := TRUE;
+        SP_IntLi := TRUE;
+    END_IF;
+
+// APC disabled (at least 2nd cycle)
+    IF NOT sAPC_En AND NOT stAPC_En THEN
+        SP_ExtOut.Value := SP_Ext.Value;
+        SP_ExtOut.ST := SP_Ext.ST;
+        SP_LiOp := FALSE;
+        SP_IntLi := FALSE;
+    END_IF;
+        
+// APC disabled
+    IF NOT sAPC_En THEN
+        MV_Out := MV_In.Value;
+    END_IF;
+
+// APC no connection
+    IF NOT Watchdog.Value THEN
+        APC_Act := FALSE;
+    END_IF;
+
+    stAPC_En := sAPC_En;
+
+END_FUNCTION_BLOCK
