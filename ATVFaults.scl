@@ -1,0 +1,908 @@
+FUNCTION FC700 : VOID
+    TITLE = 'Altivar faults parser'
+    NAME: 'ATVFlts'
+    FAMILY: 'SGOK'
+    AUTHOR: 'RoVRy'
+    VERSION: '0.11'
+    KNOW_HOW_PROTECT
+
+VAR_INPUT
+    PZDIn7      : WORD;                 // HMIS (Register 3240) input
+    PZDIn8      : WORD;                 // LFT (Register 7121) input
+    GenFltIn    : STRUCT                // General Fault input from VFD
+        Value   : BOOL := False;        // Value
+        ST      : BYTE := 16#FF;        // Signal Status
+    END_STRUCT;
+(*    HMISMsgEn { S7_visible := 'false' }
+    : STRUCT                            // Enable HMIS messages
+        Value   : BOOL := True;         // Value
+        ST      : BYTE := 16#FF;        // Signal Status
+    END_STRUCT;
+    LFTMsgEn { S7_visible := 'false' }
+    : STRUCT                            // Enable LFT messages
+        Value   : BOOL := True;         // Value
+        ST      : BYTE := 16#FF;        // Signal Status
+    END_STRUCT;   
+*)
+END_VAR
+
+VAR_TEMP
+    TUN_tmp     : BOOL;     // Drive automatic tuning
+    DCB_tmp     : BOOL;     // DC injection
+    RDY_tmp     : BOOL;     // Ready
+    NST_tmp     : BOOL;     // Freewheel stop
+    RUN_tmp     : BOOL;     // Running
+    ACC_tmp     : BOOL;     // Accelerating
+    DEC_tmp     : BOOL;     // Decelerating
+    CLI_tmp     : BOOL;     // In current limitation
+    FST_tmp     : BOOL;     // Fast stop
+    FLU_tmp     : BOOL;     // Motor fluxing
+    NLP_tmp     : BOOL;     // No mains voltage
+    CTL_tmp     : BOOL;     // Control stopping
+    OBR_tmp     : BOOL;     // Dec ramp adaptation
+    SOC_tmp     : BOOL;     // Output cut
+    USA_tmp     : BOOL;     // Undervoltage warning
+    TC_tmp      : BOOL;     // TC mode active
+    ST_tmp      : BOOL;     // In autotest
+    FA_tmp      : BOOL;     // Autotest error
+    AOK_tmp     : BOOL;     // Autotest OK
+    EP_tmp      : BOOL;     // EEPROM test
+    FLT_tmp     : BOOL;     // Operating state is Fault
+    DCP_tmp     : BOOL;     // DCP Flashing mode
+    STO_tmp     : BOOL;     // STO active
+    IDLE_tmp    : BOOL;     // Energy saving
+    FWUP_tmp    : BOOL;     // Firmware update
+    URA_tmp     : BOOL;     // AFE mains undervoltage
+    ASA_tmp     : BOOL;     // Angle test
+    BSC_tmp     : BOOL;     // Backspin control function is active
+    
+    UNK_tmp     : BOOL;     // Unknown error
+    
+    NOF_tmp     : BOOL;     // No Error
+    EEF1_tmp    : BOOL;     // EEPROM Control
+    CFF_tmp     : BOOL;     // Incorrect Configuration
+    CFI_tmp     : BOOL;     // Invalid Configuration
+    SLF1_tmp    : BOOL;     // Modbus Com Interruption
+    ILF_tmp     : BOOL;     // Internal Link Error
+    CNF_tmp     : BOOL;     // Fieldbus Com Interrupt
+    EPF1_tmp    : BOOL;     // External Error
+    OCF_tmp     : BOOL;     // Overcurrent
+    CRF1_tmp    : BOOL;     // Precharge Capacitor
+    SPF_tmp     : BOOL;     // Encoder Feedback Loss
+    ANF_tmp     : BOOL;     // Load slipping
+    IHF_tmp     : BOOL;     // Input Overheating
+    OHF_tmp     : BOOL;     // Drive Overheating
+    OLF_tmp     : BOOL;     // Motor Overload
+    OBF_tmp     : BOOL;     // DC Bus Overvoltage
+    OSF_tmp     : BOOL;     // Supply Mains Overvoltage
+    OPF1_tmp    : BOOL;     // Single output phase loss
+    PHF_tmp     : BOOL;     // Input phase loss
+    USF_tmp     : BOOL;     // Supply Mains UnderV
+    SCF1_tmp    : BOOL;     // Motor short circuit
+    SOF_tmp     : BOOL;     // Motor Overspeed
+    TNF_tmp     : BOOL;     // Autotuning Error
+    INF1_tmp    : BOOL;     // Internal Error 1
+    INF2_tmp    : BOOL;     // Internal Error 2
+    INF3_tmp    : BOOL;     // Internal Error 3
+    INF4_tmp    : BOOL;     // Internal Error 4
+    EEF2_tmp    : BOOL;     // EEPROM Power
+    SCF3_tmp    : BOOL;     // Ground Short Circuit
+    OPF2_tmp    : BOOL;     // Output Phase Loss
+    COF_tmp     : BOOL;     // CANopen Com Interrupt
+    BLF_tmp     : BOOL;     // Brake Control
+    INF7_tmp    : BOOL;     // Internal Error 7
+    EPF2_tmp    : BOOL;     // Fieldbus Error
+    INF8_tmp    : BOOL;     // Internal Error 8
+    BRF_tmp     : BOOL;     // Brake Feedback
+    SLF2_tmp    : BOOL;     // PC Com Interruption
+    ECF_tmp     : BOOL;     // Encoder Coupling
+    SSF_tmp     : BOOL;     // Torque Limitation Error
+    SLF3_tmp    : BOOL;     // HMI Com Interruption
+    INF9_tmp    : BOOL;     // Internal Error 9
+    INFA_tmp    : BOOL;     // Internal Error 10
+    INFB_tmp    : BOOL;     // Internal Error 11
+    TJF_tmp     : BOOL;     // IGBT Overheating
+    SCF4_tmp    : BOOL;     // IGBT Short Circuit
+    SCF5_tmp    : BOOL;     // Motor Short Circuit
+    SRF_tmp     : BOOL;     // Torque timeout
+    FCF1_tmp    : BOOL;     // Out Contact Closed Error
+    FCF2_tmp    : BOOL;     // Out Contact Opened Error
+    INFC_tmp    : BOOL;     // Internal Error 12
+    ENF_tmp     : BOOL;     // Encoder
+    LCF_tmp     : BOOL;     // Input Contactor
+    BUF_tmp     : BOOL;     // DB unit sh. circuit
+    INF6_tmp    : BOOL;     // Internal Error 6
+    INFE_tmp    : BOOL;     // Internal Error 14
+    BOF_tmp     : BOOL;     // Braking Resistor ovld
+    LFF3_tmp    : BOOL;     // AI3 4-20mA loss
+    LFF4_tmp    : BOOL;     // AI4 4-20mA loss
+    HCF_tmp     : BOOL;     // Boards Compatibility
+    DLF_tmp     : BOOL;     // Dynamic Load Error
+    CFI2_tmp    : BOOL;     // Conf Transfer Error
+    LFF5_tmp    : BOOL;     // AI5 4-20 mA loss
+    CSF_tmp     : BOOL;     // Channel Switch Error
+    ULF_tmp     : BOOL;     // Process Underload
+    OLC_tmp     : BOOL;     // Process Overload
+    ASF_tmp     : BOOL;     // Angle error
+    LFF1_tmp    : BOOL;     // AI1 4-20 mA loss
+    SAFF_tmp    : BOOL;     // Safety Function Error
+    TH3F_tmp    : BOOL;     // AI3 Th Level Error
+    T3CF_tmp    : BOOL;     // AI3 Thermal Sensor Error
+    PCPF_tmp    : BOOL;     // PumpCycle start Error 
+    TH4F_tmp    : BOOL;     // AI4 Th Level Error
+    T4CF_tmp    : BOOL;     // AI4 Thermal Sensor Error
+    TH5F_tmp    : BOOL;     // AI5 Th Level Error
+    T5CF_tmp    : BOOL;     // AI5 Thermal Sensor Error
+    PFMF_tmp    : BOOL;     // PID Feedback Error
+    PGLF_tmp    : BOOL;     // Program Loading Error
+    PGRF_tmp    : BOOL;     // Program Running Error
+    INFG_tmp    : BOOL;     // Internal Error 16
+    INFH_tmp    : BOOL;     // Internal Error 17
+    INF0_tmp    : BOOL;     // Internal Error 0
+    INFD_tmp    : BOOL;     // Internal Error 13
+    STF_tmp     : BOOL;     // Motor Stall Error
+    INFL_tmp    : BOOL;     // Internal Error 21
+    ETHF_tmp    : BOOL;     // Embd Eth Com Interrupt
+    INFF_tmp    : BOOL;     // Internal Error 15
+    FWER_tmp    : BOOL;     // Firmware Update Error
+    INFM_tmp    : BOOL;     // Internal Error 22
+    INFP_tmp    : BOOL;     // Internal Error 25
+    INFK_tmp    : BOOL;     // Internal Error 20
+    INFJ_tmp    : BOOL;     // Internal Error 19
+    INFR_tmp    : BOOL;     // Internal Error 27
+    INFN_tmp    : BOOL;     // Internal Error 23
+    SCF6_tmp    : BOOL;     // AFE ShortCircuit error
+    OBF2_tmp    : BOOL;     // AFE Bus unbalancing 
+    INFS_tmp    : BOOL;     // Internal Error 28
+    IFA_tmp     : BOOL;     // MonitorCircuit A Error
+    IFB_tmp     : BOOL;     // MonitorCircuit B Error
+    IFC_tmp     : BOOL;     // MonitorCircuit C Error
+    IFD_tmp     : BOOL;     // MonitorCircuit D Error
+    CFA_tmp     : BOOL;     // CabinetCircuit A Error
+    CFB_tmp     : BOOL;     // CabinetCircuit B Error
+    CFC_tmp     : BOOL;     // CabinetCircuit C Error
+    TFA_tmp     : BOOL;     // MotorWinding A Error
+    TFB_tmp     : BOOL;     // MotorWinding B Error
+    TFC_tmp     : BOOL;     // MotorBearing A Error
+    TFD_tmp     : BOOL;     // MotorBearing B Error
+    CHF_tmp     : BOOL;     // Cabinet Overheat  Error
+    URF_tmp     : BOOL;     // AFE Mains Undervoltage 
+    INFV_tmp    : BOOL;     // Internal Error 31
+    INFT_tmp    : BOOL;     // Internal Error 29
+    INFU_tmp    : BOOL;     // Internal Error 30
+    TJF2_tmp    : BOOL;     // AFE IGBT over-heat error
+    CRF3_tmp    : BOOL;     // AFE contactor feedback error
+    CFI3_tmp    : BOOL;     // Pre-settings Transfer Error
+    CBF_tmp     : BOOL;     // Circuit Breaker Error
+    BUFO_tmp    : BOOL;     // DB unit op. circuit
+    TLOF_tmp    : BOOL;     // Drive Overload
+    MDLF_tmp    : BOOL;     // MultiDrive Link Error
+    TH1F_tmp    : BOOL;     // AI1 Th Level Error
+    T1CF_tmp    : BOOL;     // AI1 Thermal Sensor Error
+    BSQF_tmp    : BOOL;     // Backlash Error
+    MSDF_tmp    : BOOL;     // M/S Device Error
+    ACF1_tmp    : BOOL;     // AFE Modulation Rate Error
+    ACF2_tmp    : BOOL;     // AFE Current Control Error
+    MFF_tmp     : BOOL;     // Mains Freq Out Of Range
+    THEF_tmp    : BOOL;     // Encoder Th Level Error
+    TECF_tmp    : BOOL;     // Encoder Th Sensor Error
+    CFI4_tmp    : BOOL;     // Empty Configuration
+    INFW_tmp    : BOOL;     // Internal Error 32
+    BUHF_tmp    : BOOL;     // BUO Overheat error
+    BUOC_tmp    : BOOL;     // BUO Overcurrent error
+    FDR1_tmp    : BOOL;     // FDR 1 Error
+    FDR2_tmp    : BOOL;     // FDR 2 Error
+    MDF_tmp     : BOOL;     // AFE Bus Ref Error
+    P24C_tmp    : BOOL;     // Cab I/O 24V Error
+    DCRE_tmp    : BOOL;     // DC Bus Ripple Error
+    IDLF_tmp    : BOOL;     // Egy Saving Exit Error
+    MDCF_tmp    : BOOL;     // Load Mvt Error
+
+END_VAR
+
+VAR_OUTPUT
+    HMIS_Out     : INT;     // HMIS enumeration index
+    LFT_Out      : INT;     // LFT enumeration index
+    UnkFault     : BOOL;     // Unknown error
+
+    HMIS_TUN { S7_visible := 'false' }  : BOOL;     // Drive automatic tuning
+    HMIS_DCB { S7_visible := 'false' }  : BOOL;     // DC injection
+    HMIS_RDY { S7_visible := 'false' }  : BOOL;     // Ready
+    HMIS_NST                            : BOOL;     // Freewheel stop
+    HMIS_RUN { S7_visible := 'false' }  : BOOL;     // Running
+    HMIS_ACC { S7_visible := 'false' }  : BOOL;     // Accelerating
+    HMIS_DEC { S7_visible := 'false' }  : BOOL;     // Decelerating
+    HMIS_CLI                            : BOOL;     // In current limitation
+    HMIS_FST                            : BOOL;     // Fast stop
+    HMIS_FLU                            : BOOL;     // Motor fluxing
+    HMIS_NLP                            : BOOL;     // No mains voltage
+    HMIS_CTL                            : BOOL;     // Control stopping
+    HMIS_OBR { S7_visible := 'false' }  : BOOL;     // Dec ramp adaptation
+    HMIS_SOC { S7_visible := 'false' }  : BOOL;     // Output cut
+    HMIS_USA                            : BOOL;     // Undervoltage warning
+    HMIS_TC { S7_visible := 'false' }   : BOOL;     // TC mode active
+    HMIS_ST { S7_visible := 'false' }   : BOOL;     // In autotest
+    HMIS_FA                             : BOOL;     // Autotest error
+    HMIS_AOK { S7_visible := 'false' }  : BOOL;     // Autotest OK
+    HMIS_EP { S7_visible := 'false' }   : BOOL;     // EEPROM test
+    HMIS_FLT                            : BOOL;     // Operating state is Fault
+    HMIS_DCP { S7_visible := 'false' }  : BOOL;     // DCP Flashing mode
+    HMIS_STO { S7_visible := 'false' }  : BOOL;     // STO active
+    HMIS_IDLE { S7_visible := 'false' } : BOOL;     // Energy saving
+    HMIS_FWUP { S7_visible := 'false' } : BOOL;     // Firmware update
+    HMIS_URA                            : BOOL;     // AFE mains undervoltage
+    HMIS_ASA { S7_visible := 'false' }  : BOOL;     // Angle test
+    HMIS_BSC { S7_visible := 'false' }  : BOOL;     // Backspin control function is active
+//
+// -------------------------------------------------------------------------------------
+//
+    LFT_NOF { S7_visible := 'false' }     : BOOL;     // No Error
+    LFT_EEF1 { S7_visible := 'false' }    : BOOL;     // EEPROM Control
+    LFT_CFF { S7_visible := 'false' }     : BOOL;     // Incorrect Configuration
+    LFT_CFI { S7_visible := 'false' }     : BOOL;     // Invalid Configuration
+    LFT_SLF1 { S7_visible := 'false' }    : BOOL;     // Modbus Com Interruption
+    LFT_ILF { S7_visible := 'false' }     : BOOL;     // Internal Link Error
+    LFT_CNF     : BOOL;     // Fieldbus Com Interrupt
+    LFT_EPF1    : BOOL;     // External Error
+    LFT_OCF     : BOOL;     // Overcurrent
+    LFT_CRF1 { S7_visible := 'false' }    : BOOL;     // Precharge Capacitor
+    LFT_SPF { S7_visible := 'false' }     : BOOL;     // Encoder Feedback Loss
+    LFT_ANF { S7_visible := 'false' }     : BOOL;     // Load slipping
+    LFT_IHF     : BOOL;     // Input Overheating
+    LFT_OHF     : BOOL;     // Drive Overheating
+    LFT_OLF     : BOOL;     // Motor Overload
+    LFT_OBF     : BOOL;     // DC Bus Overvoltage
+    LFT_OSF     : BOOL;     // Supply Mains Overvoltage
+    LFT_OPF1    : BOOL;     // Single output phase loss
+    LFT_PHF     : BOOL;     // Input phase loss
+    LFT_USF     : BOOL;     // Supply Mains UnderV
+    LFT_SCF1    : BOOL;     // Motor short circuit
+    LFT_SOF     : BOOL;     // Motor Overspeed
+    LFT_TNF     : BOOL;     // Autotuning Error
+    LFT_INF1    : BOOL;     // Internal Error 1
+    LFT_INF2    : BOOL;     // Internal Error 2
+    LFT_INF3    : BOOL;     // Internal Error 3
+    LFT_INF4    : BOOL;     // Internal Error 4
+    LFT_EEF2 { S7_visible := 'false' }    : BOOL;     // EEPROM Power
+    LFT_SCF3    : BOOL;     // Ground Short Circuit
+    LFT_OPF2    : BOOL;     // Output Phase Loss
+    LFT_COF { S7_visible := 'false' }     : BOOL;     // CANopen Com Interrupt
+    LFT_BLF { S7_visible := 'false' }     : BOOL;     // Brake Control
+    LFT_INF7    : BOOL;     // Internal Error 7
+    LFT_EPF2    : BOOL;     // Fieldbus Error
+    LFT_INF8    : BOOL;     // Internal Error 8
+    LFT_BRF { S7_visible := 'false' }     : BOOL;     // Brake Feedback
+    LFT_SLF2 { S7_visible := 'false' }    : BOOL;     // PC Com Interruption
+    LFT_ECF { S7_visible := 'false' }     : BOOL;     // Encoder Coupling
+    LFT_SSF { S7_visible := 'false' }     : BOOL;     // Torque Limitation Error
+    LFT_SLF3 { S7_visible := 'false' }    : BOOL;     // HMI Com Interruption
+    LFT_INF9 { S7_visible := 'false' }    : BOOL;     // Internal Error 9
+    LFT_INFA { S7_visible := 'false' }    : BOOL;     // Internal Error 10
+    LFT_INFB { S7_visible := 'false' }    : BOOL;     // Internal Error 11
+    LFT_TJF { S7_visible := 'false' }     : BOOL;     // IGBT Overheating
+    LFT_SCF4 { S7_visible := 'false' }    : BOOL;     // IGBT Short Circuit
+    LFT_SCF5    : BOOL;     // Motor Short Circuit
+    LFT_SRF { S7_visible := 'false' }     : BOOL;     // Torque timeout
+    LFT_FCF1 { S7_visible := 'false' }    : BOOL;     // Out Contact Closed Error
+    LFT_FCF2 { S7_visible := 'false' }    : BOOL;     // Out Contact Opened Error
+    LFT_INFC    : BOOL;     // Internal Error 12
+    LFT_ENF { S7_visible := 'false' }     : BOOL;     // Encoder
+    LFT_LCF { S7_visible := 'false' }     : BOOL;     // Input Contactor
+    LFT_BUF { S7_visible := 'false' }     : BOOL;     // DB unit sh. circuit
+    LFT_INF6    : BOOL;     // Internal Error 6
+    LFT_INFE    : BOOL;     // Internal Error 14
+    LFT_BOF     : BOOL;     // Braking Resistor ovld
+    LFT_LFF3 { S7_visible := 'false' }    : BOOL;     // AI3 4-20mA loss
+    LFT_LFF4 { S7_visible := 'false' }    : BOOL;     // AI4 4-20mA loss
+    LFT_HCF { S7_visible := 'false' }     : BOOL;     // Boards Compatibility
+    LFT_DLF { S7_visible := 'false' }     : BOOL;     // Dynamic Load Error
+    LFT_CFI2 { S7_visible := 'false' }    : BOOL;     // Conf Transfer Error
+    LFT_LFF5 { S7_visible := 'false' }    : BOOL;     // AI5 4-20 mA loss
+    LFT_CSF { S7_visible := 'false' }     : BOOL;     // Channel Switch Error
+    LFT_ULF     : BOOL;     // Process Underload
+    LFT_OLC     : BOOL;     // Process Overload
+    LFT_ASF { S7_visible := 'false' }     : BOOL;     // Angle error
+    LFT_LFF1 { S7_visible := 'false' }    : BOOL;     // AI1 4-20 mA loss
+    LFT_SAFF { S7_visible := 'false' }    : BOOL;     // Safety Function Error
+    LFT_TH3F { S7_visible := 'false' }    : BOOL;     // AI3 Th Level Error
+    LFT_T3CF { S7_visible := 'false' }    : BOOL;     // AI3 Thermal Sensor Error
+    LFT_PCPF { S7_visible := 'false' }    : BOOL;     // PumpCycle start Error 
+    LFT_TH4F { S7_visible := 'false' }    : BOOL;     // AI4 Th Level Error
+    LFT_T4CF { S7_visible := 'false' }    : BOOL;     // AI4 Thermal Sensor Error
+    LFT_TH5F { S7_visible := 'false' }    : BOOL;     // AI5 Th Level Error
+    LFT_T5CF { S7_visible := 'false' }    : BOOL;     // AI5 Thermal Sensor Error
+    LFT_PFMF { S7_visible := 'false' }    : BOOL;     // PID Feedback Error
+    LFT_PGLF { S7_visible := 'false' }    : BOOL;     // Program Loading Error
+    LFT_PGRF { S7_visible := 'false' }    : BOOL;     // Program Running Error
+    LFT_INFG { S7_visible := 'false' }    : BOOL;     // Internal Error 16
+    LFT_INFH { S7_visible := 'false' }    : BOOL;     // Internal Error 17
+    LFT_INF0 { S7_visible := 'false' }    : BOOL;     // Internal Error 0
+    LFT_INFD { S7_visible := 'false' }    : BOOL;     // Internal Error 13
+    LFT_STF     : BOOL;     // Motor Stall Error
+    LFT_INFL { S7_visible := 'false' }    : BOOL;     // Internal Error 21
+    LFT_ETHF { S7_visible := 'false' }    : BOOL;     // Embd Eth Com Interrupt
+    LFT_INFF { S7_visible := 'false' }    : BOOL;     // Internal Error 15
+    LFT_FWER { S7_visible := 'false' }    : BOOL;     // Firmware Update Error
+    LFT_INFM { S7_visible := 'false' }    : BOOL;     // Internal Error 22
+    LFT_INFP { S7_visible := 'false' }    : BOOL;     // Internal Error 25
+    LFT_INFK { S7_visible := 'false' }    : BOOL;     // Internal Error 20
+    LFT_INFJ { S7_visible := 'false' }    : BOOL;     // Internal Error 19
+    LFT_INFR { S7_visible := 'false' }    : BOOL;     // Internal Error 27
+    LFT_INFN { S7_visible := 'false' }    : BOOL;     // Internal Error 23
+    LFT_SCF6 { S7_visible := 'false' }    : BOOL;     // AFE ShortCircuit error
+    LFT_OBF2 { S7_visible := 'false' }    : BOOL;     // AFE Bus unbalancing 
+    LFT_INFS { S7_visible := 'false' }    : BOOL;     // Internal Error 28
+    LFT_IFA { S7_visible := 'false' }     : BOOL;     // MonitorCircuit A Error
+    LFT_IFB { S7_visible := 'false' }     : BOOL;     // MonitorCircuit B Error
+    LFT_IFC { S7_visible := 'false' }     : BOOL;     // MonitorCircuit C Error
+    LFT_IFD { S7_visible := 'false' }     : BOOL;     // MonitorCircuit D Error
+    LFT_CFA { S7_visible := 'false' }     : BOOL;     // CabinetCircuit A Error
+    LFT_CFB { S7_visible := 'false' }     : BOOL;     // CabinetCircuit B Error
+    LFT_CFC { S7_visible := 'false' }     : BOOL;     // CabinetCircuit C Error
+    LFT_TFA { S7_visible := 'false' }     : BOOL;     // MotorWinding A Error
+    LFT_TFB { S7_visible := 'false' }     : BOOL;     // MotorWinding B Error
+    LFT_TFC { S7_visible := 'false' }     : BOOL;     // MotorBearing A Error
+    LFT_TFD { S7_visible := 'false' }     : BOOL;     // MotorBearing B Error
+    LFT_CHF { S7_visible := 'false' }     : BOOL;     // Cabinet Overheat  Error
+    LFT_URF { S7_visible := 'false' }     : BOOL;     // AFE Mains Undervoltage 
+    LFT_INFV { S7_visible := 'false' }    : BOOL;     // Internal Error 31
+    LFT_INFT { S7_visible := 'false' }    : BOOL;     // Internal Error 29
+    LFT_INFU { S7_visible := 'false' }    : BOOL;     // Internal Error 30
+    LFT_TJF2 { S7_visible := 'false' }    : BOOL;     // AFE IGBT over-heat error
+    LFT_CRF3 { S7_visible := 'false' }    : BOOL;     // AFE contactor feedback error
+    LFT_CFI3 { S7_visible := 'false' }    : BOOL;     // Pre-settings Transfer Error
+    LFT_CBF     : BOOL;     // Circuit Breaker Error
+    LFT_BUFO { S7_visible := 'false' }    : BOOL;     // DB unit op. circuit
+    LFT_TLOF    : BOOL;     // Drive Overload
+    LFT_MDLF { S7_visible := 'false' }    : BOOL;     // MultiDrive Link Error
+    LFT_TH1F { S7_visible := 'false' }    : BOOL;     // AI1 Th Level Error
+    LFT_T1CF { S7_visible := 'false' }    : BOOL;     // AI1 Thermal Sensor Error
+    LFT_BSQF { S7_visible := 'false' }    : BOOL;     // Backlash Error
+    LFT_MSDF { S7_visible := 'false' }    : BOOL;     // M/S Device Error
+    LFT_ACF1 { S7_visible := 'false' }    : BOOL;     // AFE Modulation Rate Error
+    LFT_ACF2 { S7_visible := 'false' }    : BOOL;     // AFE Current Control Error
+    LFT_MFF { S7_visible := 'false' }     : BOOL;     // Mains Freq Out Of Range
+    LFT_THEF { S7_visible := 'false' }    : BOOL;     // Encoder Th Level Error
+    LFT_TECF { S7_visible := 'false' }    : BOOL;     // Encoder Th Sensor Error
+    LFT_CFI4 { S7_visible := 'false' }    : BOOL;     // Empty Configuration
+    LFT_INFW { S7_visible := 'false' }    : BOOL;     // Internal Error 32
+    LFT_BUHF { S7_visible := 'false' }    : BOOL;     // BUO Overheat error
+    LFT_BUOC { S7_visible := 'false' }    : BOOL;     // BUO Overcurrent error
+    LFT_FDR1 { S7_visible := 'false' }    : BOOL;     // FDR 1 Error
+    LFT_FDR2 { S7_visible := 'false' }    : BOOL;     // FDR 2 Error
+    LFT_MDF { S7_visible := 'false' }     : BOOL;     // AFE Bus Ref Error
+    LFT_P24C { S7_visible := 'false' }    : BOOL;     // Cab I/O 24V Error
+    LFT_DCRE    : BOOL;     // DC Bus Ripple Error
+    LFT_IDLF { S7_visible := 'false' }    : BOOL;     // Egy Saving Exit Error
+    LFT_MDCF { S7_visible := 'false' }    : BOOL;     // Load Mvt Error
+
+END_VAR
+
+BEGIN
+
+    UNK_tmp  := FALSE;
+
+    TUN_tmp  := FALSE;
+    DCB_tmp  := FALSE;
+    RDY_tmp  := FALSE;
+    NST_tmp  := FALSE;
+    RUN_tmp  := FALSE;
+    ACC_tmp  := FALSE;
+    DEC_tmp  := FALSE;
+    CLI_tmp  := FALSE;
+    FST_tmp  := FALSE;
+    FLU_tmp  := FALSE;
+    NLP_tmp  := FALSE;
+    CTL_tmp  := FALSE;
+    OBR_tmp  := FALSE;
+    SOC_tmp  := FALSE;
+    USA_tmp  := FALSE;
+    TC_tmp   := FALSE;
+    ST_tmp   := FALSE;
+    FA_tmp   := FALSE;
+    AOK_tmp  := FALSE;
+    EP_tmp   := FALSE;
+    FLT_tmp  := FALSE;
+    DCP_tmp  := FALSE;
+    STO_tmp  := FALSE;
+    IDLE_tmp := FALSE;
+    FWUP_tmp := FALSE;
+    URA_tmp  := FALSE;
+    ASA_tmp  := FALSE;
+    BSC_tmp  := FALSE;
+
+    NOF_tmp  := FALSE;
+    EEF1_tmp := FALSE;
+    CFF_tmp  := FALSE;
+    CFI_tmp  := FALSE;
+    SLF1_tmp := FALSE;
+    ILF_tmp  := FALSE;
+    CNF_tmp  := FALSE;
+    EPF1_tmp := FALSE;
+    OCF_tmp  := FALSE;
+    CRF1_tmp := FALSE;
+    SPF_tmp  := FALSE;
+    ANF_tmp  := FALSE;
+    IHF_tmp  := FALSE;
+    OHF_tmp  := FALSE;
+    OLF_tmp  := FALSE;
+    OBF_tmp  := FALSE;
+    OSF_tmp  := FALSE;
+    OPF1_tmp := FALSE;
+    PHF_tmp  := FALSE;
+    USF_tmp  := FALSE;
+    SCF1_tmp := FALSE;
+    SOF_tmp  := FALSE;
+    TNF_tmp  := FALSE;
+    INF1_tmp := FALSE;
+    INF2_tmp := FALSE;
+    INF3_tmp := FALSE;
+    INF4_tmp := FALSE;
+    EEF2_tmp := FALSE;
+    SCF3_tmp := FALSE;
+    OPF2_tmp := FALSE;
+    COF_tmp  := FALSE;
+    BLF_tmp  := FALSE;
+    INF7_tmp := FALSE;
+    EPF2_tmp := FALSE;
+    INF8_tmp := FALSE;
+    BRF_tmp  := FALSE;
+    SLF2_tmp := FALSE;
+    ECF_tmp  := FALSE;
+    SSF_tmp  := FALSE;
+    SLF3_tmp := FALSE;
+    INF9_tmp := FALSE;
+    INFA_tmp := FALSE;
+    INFB_tmp := FALSE;
+    TJF_tmp  := FALSE;
+    SCF4_tmp := FALSE;
+    SCF5_tmp := FALSE;
+    SRF_tmp  := FALSE;
+    FCF1_tmp := FALSE;
+    FCF2_tmp := FALSE;
+    INFC_tmp := FALSE;
+    ENF_tmp  := FALSE;
+    LCF_tmp  := FALSE;
+    BUF_tmp  := FALSE;
+    INF6_tmp := FALSE;
+    INFE_tmp := FALSE;
+    BOF_tmp  := FALSE;
+    LFF3_tmp := FALSE;
+    LFF4_tmp := FALSE;
+    HCF_tmp  := FALSE;
+    DLF_tmp  := FALSE;
+    CFI2_tmp := FALSE;
+    LFF5_tmp := FALSE;
+    CSF_tmp  := FALSE;
+    ULF_tmp  := FALSE;
+    OLC_tmp  := FALSE;
+    ASF_tmp  := FALSE;
+    LFF1_tmp := FALSE;
+    SAFF_tmp := FALSE;
+    TH3F_tmp := FALSE;
+    T3CF_tmp := FALSE;
+    PCPF_tmp := FALSE;
+    TH4F_tmp := FALSE;
+    T4CF_tmp := FALSE;
+    TH5F_tmp := FALSE;
+    T5CF_tmp := FALSE;
+    PFMF_tmp := FALSE;
+    PGLF_tmp := FALSE;
+    PGRF_tmp := FALSE;
+    INFG_tmp := FALSE;
+    INFH_tmp := FALSE;
+    INF0_tmp := FALSE;
+    INFD_tmp := FALSE;
+    STF_tmp  := FALSE;
+    INFL_tmp := FALSE;
+    ETHF_tmp := FALSE;
+    INFF_tmp := FALSE;
+    FWER_tmp := FALSE;
+    INFM_tmp := FALSE;
+    INFP_tmp := FALSE;
+    INFK_tmp := FALSE;
+    INFJ_tmp := FALSE;
+    INFR_tmp := FALSE;
+    INFN_tmp := FALSE;
+    SCF6_tmp := FALSE;
+    OBF2_tmp := FALSE;
+    INFS_tmp := FALSE;
+    IFA_tmp  := FALSE;
+    IFB_tmp  := FALSE;
+    IFC_tmp  := FALSE;
+    IFD_tmp  := FALSE;
+    CFA_tmp  := FALSE;
+    CFB_tmp  := FALSE;
+    CFC_tmp  := FALSE;
+    TFA_tmp  := FALSE;
+    TFB_tmp  := FALSE;
+    TFC_tmp  := FALSE;
+    TFD_tmp  := FALSE;
+    CHF_tmp  := FALSE;
+    URF_tmp  := FALSE;
+    INFV_tmp := FALSE;
+    INFT_tmp := FALSE;
+    INFU_tmp := FALSE;
+    TJF2_tmp := FALSE;
+    CRF3_tmp := FALSE;
+    CFI3_tmp := FALSE;
+    CBF_tmp  := FALSE;
+    BUFO_tmp := FALSE;
+    TLOF_tmp := FALSE;
+    MDLF_tmp := FALSE;
+    TH1F_tmp := FALSE;
+    T1CF_tmp := FALSE;
+    BSQF_tmp := FALSE;
+    MSDF_tmp := FALSE;
+    ACF1_tmp := FALSE;
+    ACF2_tmp := FALSE;
+    MFF_tmp  := FALSE;
+    THEF_tmp := FALSE;
+    TECF_tmp := FALSE;
+    CFI4_tmp := FALSE;
+    INFW_tmp := FALSE;
+    BUHF_tmp := FALSE;
+    BUOC_tmp := FALSE;
+    FDR1_tmp := FALSE;
+    FDR2_tmp := FALSE;
+    MDF_tmp  := FALSE;
+    P24C_tmp := FALSE;
+    DCRE_tmp := FALSE;
+    IDLF_tmp := FALSE;
+    MDCF_tmp := FALSE;
+
+
+    CASE WORD_TO_INT(PZDIn7) OF
+        0:  TUN_tmp  := TRUE;
+        1:  DCB_tmp  := TRUE;
+        2:  RDY_tmp  := TRUE;
+        3:  NST_tmp  := TRUE;
+        4:  RUN_tmp  := TRUE;
+        5:  ACC_tmp  := TRUE;
+        6:  DEC_tmp  := TRUE;
+        7:  CLI_tmp  := TRUE;
+        8:  FST_tmp  := TRUE;
+        9:  FLU_tmp  := TRUE;
+        11: NLP_tmp  := TRUE;
+        13: CTL_tmp  := TRUE;
+        14: OBR_tmp  := TRUE;
+        15: SOC_tmp  := TRUE;
+        17: USA_tmp  := TRUE;
+        18: TC_tmp   := TRUE;
+        19: ST_tmp   := TRUE;
+        20: FA_tmp   := TRUE;
+        21: AOK_tmp  := TRUE;
+        22: EP_tmp   := TRUE;
+        23: FLT_tmp  := TRUE;
+        25: DCP_tmp  := TRUE;
+        30: STO_tmp  := TRUE;
+        35: IDLE_tmp := TRUE;
+        36: FWUP_tmp := TRUE;
+        37: URA_tmp  := TRUE;
+        38: ASA_tmp  := TRUE;
+        39: BSC_tmp  := TRUE;
+    ELSE:
+        UNK_tmp := TRUE;
+    END_CASE;
+
+    IF GenFltIn.Value = True THEN
+        CASE WORD_TO_INT(PZDIn8) OF
+            0:   NOF_tmp  := TRUE;
+            2:   EEF1_tmp := TRUE;
+            3:   CFF_tmp  := TRUE;
+            4:   CFI_tmp  := TRUE;
+            5:   SLF1_tmp := TRUE;
+            6:   ILF_tmp  := TRUE;
+            7:   CNF_tmp  := TRUE;
+            8:   EPF1_tmp := TRUE;
+            9:   OCF_tmp  := TRUE;
+            10:  CRF1_tmp := TRUE;
+            11:  SPF_tmp  := TRUE;
+            12:  ANF_tmp  := TRUE;
+            15:  IHF_tmp  := TRUE;
+            16:  OHF_tmp  := TRUE;
+            17:  OLF_tmp  := TRUE;
+            18:  OBF_tmp  := TRUE;
+            19:  OSF_tmp  := TRUE;
+            20:  OPF1_tmp := TRUE;
+            21:  PHF_tmp  := TRUE;
+            22:  USF_tmp  := TRUE;
+            23:  SCF1_tmp := TRUE;
+            24:  SOF_tmp  := TRUE;
+            25:  TNF_tmp  := TRUE;
+            26:  INF1_tmp := TRUE;
+            27:  INF2_tmp := TRUE;
+            28:  INF3_tmp := TRUE;
+            29:  INF4_tmp := TRUE;
+            30:  EEF2_tmp := TRUE;
+            32:  SCF3_tmp := TRUE;
+            33:  OPF2_tmp := TRUE;
+            34:  COF_tmp  := TRUE;
+            35:  BLF_tmp  := TRUE;
+            37:  INF7_tmp := TRUE;
+            38:  EPF2_tmp := TRUE;
+            40:  INF8_tmp := TRUE;
+            41:  BRF_tmp  := TRUE;
+            42:  SLF2_tmp := TRUE;
+            43:  ECF_tmp  := TRUE;
+            44:  SSF_tmp  := TRUE;
+            45:  SLF3_tmp := TRUE;
+            51:  INF9_tmp := TRUE;
+            52:  INFA_tmp := TRUE;
+            53:  INFB_tmp := TRUE;
+            54:  TJF_tmp  := TRUE;
+            55:  SCF4_tmp := TRUE;
+            56:  SCF5_tmp := TRUE;
+            57:  SRF_tmp  := TRUE;
+            58:  FCF1_tmp := TRUE;
+            59:  FCF2_tmp := TRUE;
+            60:  INFC_tmp := TRUE;
+            62:  ENF_tmp  := TRUE;
+            64:  LCF_tmp  := TRUE;
+            65:  BUF_tmp  := TRUE;
+            68:  INF6_tmp := TRUE;
+            69:  INFE_tmp := TRUE;
+            70:  BOF_tmp  := TRUE;
+            71:  LFF3_tmp := TRUE;
+            72:  LFF4_tmp := TRUE;
+            73:  HCF_tmp  := TRUE;
+            76:  DLF_tmp  := TRUE;
+            77:  CFI2_tmp := TRUE;
+            79:  LFF5_tmp := TRUE;
+            99:  CSF_tmp  := TRUE;
+            100: ULF_tmp  := TRUE;
+            101: OLC_tmp  := TRUE;
+            105: ASF_tmp  := TRUE;
+            106: LFF1_tmp := TRUE;
+            107: SAFF_tmp := TRUE;
+            112: TH3F_tmp := TRUE;
+            113: T3CF_tmp := TRUE;
+            114: PCPF_tmp := TRUE;
+            120: TH4F_tmp := TRUE;
+            121: T4CF_tmp := TRUE;
+            122: TH5F_tmp := TRUE;
+            123: T5CF_tmp := TRUE;
+            127: PFMF_tmp := TRUE;
+            128: PGLF_tmp := TRUE;
+            129: PGRF_tmp := TRUE;
+            142: INFG_tmp := TRUE;
+            143: INFH_tmp := TRUE;
+            144: INF0_tmp := TRUE;
+            146: INFD_tmp := TRUE;
+            148: STF_tmp  := TRUE;
+            149: INFL_tmp := TRUE;
+            150: ETHF_tmp := TRUE;
+            151: INFF_tmp := TRUE;
+            152: FWER_tmp := TRUE;
+            153: INFM_tmp := TRUE;
+            154: INFP_tmp := TRUE;
+            155: INFK_tmp := TRUE;
+            156: INFJ_tmp := TRUE;
+            157: INFR_tmp := TRUE;
+            158: INFN_tmp := TRUE;
+            159: SCF6_tmp := TRUE;
+            160: OBF2_tmp := TRUE;
+            161: INFS_tmp := TRUE;
+            162: IFA_tmp  := TRUE;
+            163: IFB_tmp  := TRUE;
+            164: IFC_tmp  := TRUE;
+            165: IFD_tmp  := TRUE;
+            166: CFA_tmp  := TRUE;
+            167: CFB_tmp  := TRUE;
+            168: CFC_tmp  := TRUE;
+            169: TFA_tmp  := TRUE;
+            170: TFB_tmp  := TRUE;
+            171: TFC_tmp  := TRUE;
+            172: TFD_tmp  := TRUE;
+            173: CHF_tmp  := TRUE;
+            174: URF_tmp  := TRUE;
+            175: INFV_tmp := TRUE;
+            176: INFT_tmp := TRUE;
+            177: INFU_tmp := TRUE;
+            179: TJF2_tmp := TRUE;
+            180: CRF3_tmp := TRUE;
+            181: CFI3_tmp := TRUE;
+            182: CBF_tmp  := TRUE;
+            184: BUFO_tmp := TRUE;
+            185: TLOF_tmp := TRUE;
+            186: MDLF_tmp := TRUE;
+            187: TH1F_tmp := TRUE;
+            188: T1CF_tmp := TRUE;
+            189: BSQF_tmp := TRUE;
+            190: MSDF_tmp := TRUE;
+            191: ACF1_tmp := TRUE;
+            192: ACF2_tmp := TRUE;
+            193: MFF_tmp  := TRUE;
+            194: THEF_tmp := TRUE;
+            195: TECF_tmp := TRUE;
+            196: CFI4_tmp := TRUE;
+            197: INFW_tmp := TRUE;
+            198: BUHF_tmp := TRUE;
+            199: BUOC_tmp := TRUE;
+            200: FDR1_tmp := TRUE;
+            201: FDR2_tmp := TRUE;
+            202: MDF_tmp  := TRUE;
+            203: P24C_tmp := TRUE;
+            206: DCRE_tmp := TRUE;
+            208: IDLF_tmp := TRUE;
+            209: MDCF_tmp := TRUE;
+        ELSE:
+            UNK_tmp := TRUE;        
+        END_CASE;
+    END_IF;
+
+    UnkFault := UNK_tmp;
+
+    HMIS_TUN  := TUN_tmp;
+    HMIS_DCB  := DCB_tmp;
+    HMIS_RDY  := RDY_tmp;
+    HMIS_NST  := NST_tmp;
+    HMIS_RUN  := RUN_tmp;
+    HMIS_ACC  := ACC_tmp;
+    HMIS_DEC  := DEC_tmp;
+    HMIS_CLI  := CLI_tmp;
+    HMIS_FST  := FST_tmp;
+    HMIS_FLU  := FLU_tmp;
+    HMIS_NLP  := NLP_tmp;
+    HMIS_CTL  := CTL_tmp;
+    HMIS_OBR  := OBR_tmp;
+    HMIS_SOC  := SOC_tmp;
+    HMIS_USA  := USA_tmp;
+    HMIS_TC   := TC_tmp;
+    HMIS_ST   := ST_tmp;
+    HMIS_FA   := FA_tmp;
+    HMIS_AOK  := AOK_tmp;
+    HMIS_EP   := EP_tmp;
+    HMIS_FLT  := FLT_tmp;
+    HMIS_DCP  := DCP_tmp;
+    HMIS_STO  := STO_tmp;
+    HMIS_IDLE := IDLE_tmp;
+    HMIS_FWUP := FWUP_tmp;
+    HMIS_URA  := URA_tmp;
+    HMIS_ASA  := ASA_tmp;
+    HMIS_BSC  := BSC_tmp;
+
+    LFT_NOF  := NOF_tmp;
+    LFT_EEF1 := EEF1_tmp;
+    LFT_CFF  := CFF_tmp;
+    LFT_CFI  := CFI_tmp;
+    LFT_SLF1 := SLF1_tmp;
+    LFT_ILF  := ILF_tmp;
+    LFT_CNF  := CNF_tmp;
+    LFT_EPF1 := EPF1_tmp;
+    LFT_OCF  := OCF_tmp;
+    LFT_CRF1 := CRF1_tmp;
+    LFT_SPF  := SPF_tmp;
+    LFT_ANF  := ANF_tmp;
+    LFT_IHF  := IHF_tmp;
+    LFT_OHF  := OHF_tmp;
+    LFT_OLF  := OLF_tmp;
+    LFT_OBF  := OBF_tmp;
+    LFT_OSF  := OSF_tmp;
+    LFT_OPF1 := OPF1_tmp;
+    LFT_PHF  := PHF_tmp;
+    LFT_USF  := USF_tmp;
+    LFT_SCF1 := SCF1_tmp;
+    LFT_SOF  := SOF_tmp;
+    LFT_TNF  := TNF_tmp;
+    LFT_INF1 := INF1_tmp;
+    LFT_INF2 := INF2_tmp;
+    LFT_INF3 := INF3_tmp;
+    LFT_INF4 := INF4_tmp;
+    LFT_EEF2 := EEF2_tmp;
+    LFT_SCF3 := SCF3_tmp;
+    LFT_OPF2 := OPF2_tmp;
+    LFT_COF  := COF_tmp;
+    LFT_BLF  := BLF_tmp;
+    LFT_INF7 := INF7_tmp;
+    LFT_EPF2 := EPF2_tmp;
+    LFT_INF8 := INF8_tmp;
+    LFT_BRF  := BRF_tmp;
+    LFT_SLF2 := SLF2_tmp;
+    LFT_ECF  := ECF_tmp;
+    LFT_SSF  := SSF_tmp;
+    LFT_SLF3 := SLF3_tmp;
+    LFT_INF9 := INF9_tmp;
+    LFT_INFA := INFA_tmp;
+    LFT_INFB := INFB_tmp;
+    LFT_TJF  := TJF_tmp;
+    LFT_SCF4 := SCF4_tmp;
+    LFT_SCF5 := SCF5_tmp;
+    LFT_SRF  := SRF_tmp;
+    LFT_FCF1 := FCF1_tmp;
+    LFT_FCF2 := FCF2_tmp;
+    LFT_INFC := INFC_tmp;
+    LFT_ENF  := ENF_tmp;
+    LFT_LCF  := LCF_tmp;
+    LFT_BUF  := BUF_tmp;
+    LFT_INF6 := INF6_tmp;
+    LFT_INFE := INFE_tmp;
+    LFT_BOF  := BOF_tmp;
+    LFT_LFF3 := LFF3_tmp;
+    LFT_LFF4 := LFF4_tmp;
+    LFT_HCF  := HCF_tmp;
+    LFT_DLF  := DLF_tmp;
+    LFT_CFI2 := CFI2_tmp;
+    LFT_LFF5 := LFF5_tmp;
+    LFT_CSF  := CSF_tmp;
+    LFT_ULF  := ULF_tmp;
+    LFT_OLC  := OLC_tmp;
+    LFT_ASF  := ASF_tmp;
+    LFT_LFF1 := LFF1_tmp;
+    LFT_SAFF := SAFF_tmp;
+    LFT_TH3F := TH3F_tmp;
+    LFT_T3CF := T3CF_tmp;
+    LFT_PCPF := PCPF_tmp;
+    LFT_TH4F := TH4F_tmp;
+    LFT_T4CF := T4CF_tmp;
+    LFT_TH5F := TH5F_tmp;
+    LFT_T5CF := T5CF_tmp;
+    LFT_PFMF := PFMF_tmp;
+    LFT_PGLF := PGLF_tmp;
+    LFT_PGRF := PGRF_tmp;
+    LFT_INFG := INFG_tmp;
+    LFT_INFH := INFH_tmp;
+    LFT_INF0 := INF0_tmp;
+    LFT_INFD := INFD_tmp;
+    LFT_STF  := STF_tmp;
+    LFT_INFL := INFL_tmp;
+    LFT_ETHF := ETHF_tmp;
+    LFT_INFF := INFF_tmp;
+    LFT_FWER := FWER_tmp;
+    LFT_INFM := INFM_tmp;
+    LFT_INFP := INFP_tmp;
+    LFT_INFK := INFK_tmp;
+    LFT_INFJ := INFJ_tmp;
+    LFT_INFR := INFR_tmp;
+    LFT_INFN := INFN_tmp;
+    LFT_SCF6 := SCF6_tmp;
+    LFT_OBF2 := OBF2_tmp;
+    LFT_INFS := INFS_tmp;
+    LFT_IFA  := IFA_tmp;
+    LFT_IFB  := IFB_tmp;
+    LFT_IFC  := IFC_tmp;
+    LFT_IFD  := IFD_tmp;
+    LFT_CFA  := CFA_tmp;
+    LFT_CFB  := CFB_tmp;
+    LFT_CFC  := CFC_tmp;
+    LFT_TFA  := TFA_tmp;
+    LFT_TFB  := TFB_tmp;
+    LFT_TFC  := TFC_tmp;
+    LFT_TFD  := TFD_tmp;
+    LFT_CHF  := CHF_tmp;
+    LFT_URF  := URF_tmp;
+    LFT_INFV := INFV_tmp;
+    LFT_INFT := INFT_tmp;
+    LFT_INFU := INFU_tmp;
+    LFT_TJF2 := TJF2_tmp;
+    LFT_CRF3 := CRF3_tmp;
+    LFT_CFI3 := CFI3_tmp;
+    LFT_CBF  := CBF_tmp;
+    LFT_BUFO := BUFO_tmp;
+    LFT_TLOF := TLOF_tmp;
+    LFT_MDLF := MDLF_tmp;
+    LFT_TH1F := TH1F_tmp;
+    LFT_T1CF := T1CF_tmp;
+    LFT_BSQF := BSQF_tmp;
+    LFT_MSDF := MSDF_tmp;
+    LFT_ACF1 := ACF1_tmp;
+    LFT_ACF2 := ACF2_tmp;
+    LFT_MFF  := MFF_tmp;
+    LFT_THEF := THEF_tmp;
+    LFT_TECF := TECF_tmp;
+    LFT_CFI4 := CFI4_tmp;
+    LFT_INFW := INFW_tmp;
+    LFT_BUHF := BUHF_tmp;
+    LFT_BUOC := BUOC_tmp;
+    LFT_FDR1 := FDR1_tmp;
+    LFT_FDR2 := FDR2_tmp;
+    LFT_MDF  := MDF_tmp;
+    LFT_P24C := P24C_tmp;
+    LFT_DCRE := DCRE_tmp;
+    LFT_IDLF := IDLF_tmp;
+    LFT_MDCF := MDCF_tmp;
+
+    HMIS_Out := WORD_TO_INT(PZDIn7);
+    LFT_Out := WORD_TO_INT(PZDIn8);
+
+END_FUNCTION
