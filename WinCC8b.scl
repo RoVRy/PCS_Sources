@@ -1,0 +1,158 @@
+FUNCTION_BLOCK WinCC8B {
+                  S7_m_c := 'true';
+                  S7_blockview := 'big';
+                  Scl_OverwriteBlocks := 'y';
+                  Scl_CreateObjectCode := 'y';
+                  Scl_OptimizeObjectCode := 'y';
+                  Scl_MonitorArrayLimits := 'n';
+                  Scl_CreateDebugInfo := 'n';
+                  Scl_S7ServerActive := 'n';
+                  GenerateReferenceData := 'y';
+                  SetMaximumStringLength := '254'
+                 }
+TITLE = '8 binaries read/write from/to WinCC'
+VERSION: '0.1'
+AUTHOR: RoVRy
+NAME: WinCC8B
+FAMILY: OUTOTEC
+KNOW_HOW_PROTECT
+
+VAR_INPUT
+
+    In1 { S7_m_c := 'true';
+          S7_xm_c := 'Value,true;';
+          S7_xqc := 'Value,true;';
+          S7_dynamic := 'true' } : STRUCT
+            Value : BOOL := FALSE;                      // Value
+            ST    : BYTE := 16#FF;                      // Signal Status
+        END_STRUCT;                                     // Input 1
+
+    In2 { S7_m_c := 'true';
+          S7_xm_c := 'Value,true;';
+          S7_xqc := 'Value,true;';
+          S7_dynamic := 'true' } : STRUCT
+            Value : BOOL := FALSE;                      // Value
+            ST    : BYTE := 16#FF;                      // Signal Status
+        END_STRUCT;                                     // Input 2
+
+    In3 { S7_m_c := 'true';
+          S7_xm_c := 'Value,true;';
+          S7_xqc := 'Value,true;';
+          S7_dynamic := 'true' } : STRUCT
+            Value : BOOL := FALSE;                      // Value
+            ST    : BYTE := 16#FF;                      // Signal Status
+        END_STRUCT;                                     // Input 3
+
+    In4 { S7_m_c := 'true';
+          S7_xm_c := 'Value,true;';
+          S7_xqc := 'Value,true;';
+          S7_dynamic := 'true' } : STRUCT
+            Value : BOOL := FALSE;                      // Value
+            ST    : BYTE := 16#FF;                      // Signal Status
+        END_STRUCT;                                     // Input 4
+
+    In5 { S7_m_c := 'true';
+          S7_xm_c := 'Value,true;';
+          S7_xqc := 'Value,true;';
+          S7_dynamic := 'true' } : STRUCT
+            Value : BOOL := FALSE;                      // Value
+            ST    : BYTE := 16#FF;                      // Signal Status
+        END_STRUCT;                                     // Input 5
+
+    In6 { S7_m_c := 'true';
+          S7_xm_c := 'Value,true;';
+          S7_xqc := 'Value,true;';
+          S7_dynamic := 'true' } : STRUCT
+            Value : BOOL := FALSE;                      // Value
+            ST    : BYTE := 16#FF;                      // Signal Status
+        END_STRUCT;                                     // Input 6
+
+    In7 { S7_m_c := 'true';
+          S7_xm_c := 'Value,true;';
+          S7_xqc := 'Value,true;';
+          S7_dynamic := 'true' } : STRUCT
+            Value : BOOL := FALSE;                      // Value
+            ST    : BYTE := 16#FF;                      // Signal Status
+        END_STRUCT;                                     // Input 7
+
+    In8 { S7_m_c := 'true';
+          S7_xm_c := 'Value,true;';
+          S7_xqc := 'Value,true;';
+          S7_dynamic := 'true' } : STRUCT
+            Value : BOOL := FALSE;                      // Value
+            ST    : BYTE := 16#FF;                      // Signal Status
+        END_STRUCT;                                     // Input 8
+
+END_VAR
+
+VAR_OUTPUT
+
+    Out1 { S7_dynamic := 'true' } : STRUCT
+            Value : BOOL;                               // Value
+            ST    : BYTE;                               // Signal Status
+        END_STRUCT;                                     // Output 1
+
+    Out2 { S7_dynamic := 'true' } : STRUCT
+            Value : BOOL;                               // Value
+            ST    : BYTE;                               // Signal Status
+        END_STRUCT;                                     // Output 2
+
+    Out3 { S7_dynamic := 'true' } : STRUCT
+            Value : BOOL;                               // Value
+            ST    : BYTE;                               // Signal Status
+        END_STRUCT;                                     // Output 3
+
+    Out4 { S7_dynamic := 'true' } : STRUCT
+            Value : BOOL;                               // Value
+            ST    : BYTE;                               // Signal Status
+        END_STRUCT;                                     // Output 4
+
+    Out5 { S7_dynamic := 'true' } : STRUCT
+            Value : BOOL;                               // Value
+            ST    : BYTE;                               // Signal Status
+        END_STRUCT;                                     // Output 5
+
+    Out6 { S7_dynamic := 'true' } : STRUCT
+            Value : BOOL;                               // Value
+            ST    : BYTE;                               // Signal Status
+        END_STRUCT;                                     // Output 6
+
+    Out7 { S7_dynamic := 'true' } : STRUCT
+            Value : BOOL;                               // Value
+            ST    : BYTE;                               // Signal Status
+        END_STRUCT;                                     // Output 7
+
+    Out8 { S7_dynamic := 'true' } : STRUCT
+            Value : BOOL;                               // Value
+            ST    : BYTE;                               // Signal Status
+        END_STRUCT;                                     // Output 8
+
+END_VAR
+
+BEGIN
+
+    Out1.Value := In1.Value;
+    Out1.ST    := In1.ST;
+
+    Out2.Value := In2.Value;
+    Out2.ST    := In2.ST;
+
+    Out3.Value := In3.Value;
+    Out3.ST    := In3.ST;
+
+    Out4.Value := In4.Value;
+    Out4.ST    := In4.ST;
+
+    Out5.Value := In5.Value;
+    Out5.ST    := In5.ST;
+
+    Out6.Value := In6.Value;
+    Out6.ST    := In6.ST;
+
+    Out7.Value := In7.Value;
+    Out7.ST    := In7.ST;
+
+    Out8.Value := In8.Value;
+    Out8.ST    := In8.ST;
+    
+END_FUNCTION_BLOCK
