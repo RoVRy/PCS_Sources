@@ -3,7 +3,7 @@ TITLE = 'Pass direct or exchange 2 REAL values'
 VERSION: '0.2'
 AUTHOR: RoVRy
 NAME: RealXchg
-FAMILY: SGOK
+FAMILY: AdvLibRR
 
 VAR_INPUT
 
