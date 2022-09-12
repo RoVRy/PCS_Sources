@@ -3,7 +3,7 @@ TITLE = 'Hold real value'
 VERSION: '0.9'
 AUTHOR: RoVRy
 NAME: HoldReal
-FAMILY: LogicAn
+FAMILY: AdvLibRR
 
 VAR_INPUT
 
