@@ -3,7 +3,7 @@ FUNCTION_BLOCK Pcs7WgAn
     VERSION: '0.4'
     AUTHOR: RoVRy
     NAME: Pcs7WgAn
-    FAMILY: Channel
+    FAMILY: AdvLibRR
     KNOW_HOW_PROTECT
     
 //============================================================================================================================================================
