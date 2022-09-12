@@ -14,7 +14,7 @@ TITLE = '8 binaries read/write from/to WinCC'
 VERSION: '0.1'
 AUTHOR: RoVRy
 NAME: WinCC8B
-FAMILY: OUTOTEC
+FAMILY: AdvLibRR
 KNOW_HOW_PROTECT
 
 VAR_INPUT
