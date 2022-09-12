@@ -3,7 +3,7 @@ FUNCTION PelMat: VOID
 TITLE = 'Calculate pellets materials'
 
 AUTHOR:   RovRy
-FAMILY:   SGOK
+FAMILY:   AdvLibRR
 NAME:     PelMat
 VERSION:  '0.3'
 
