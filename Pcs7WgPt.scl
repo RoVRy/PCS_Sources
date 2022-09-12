@@ -3,7 +3,7 @@ FUNCTION_BLOCK Pcs7WgPt
     VERSION: '0.3'
     AUTHOR: RoVRy
     NAME: Pcs7WgPt
-    FAMILY: Channel
+    FAMILY: AdvLibRR
     KNOW_HOW_PROTECT
     
 //============================================================================================================================================================
