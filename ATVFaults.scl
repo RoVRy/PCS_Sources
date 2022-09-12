@@ -1,7 +1,7 @@
 FUNCTION FC700 : VOID
     TITLE = 'Altivar faults parser'
     NAME: 'ATVFlts'
-    FAMILY: 'SGOK'
+    FAMILY: 'AdvLibRR'
     AUTHOR: 'RoVRy'
     VERSION: '0.11'
     KNOW_HOW_PROTECT
