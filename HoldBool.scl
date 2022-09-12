@@ -3,7 +3,7 @@ TITLE = 'Hold bool value'
 VERSION: '0.9'
 AUTHOR: RoVRy
 NAME: HoldBool
-FAMILY: LogicDi
+FAMILY: AdvLibRR
 
 VAR_INPUT
 
