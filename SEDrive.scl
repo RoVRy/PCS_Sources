@@ -7,7 +7,7 @@ FUNCTION_BLOCK SEDrive
     VERSION: '0.7'
     AUTHOR: RoVRy
     NAME: SEDrive
-    FAMILY: Channel
+    FAMILY: AdvLibRR
 (*
 ---------------------------------------- Constants ----------------------------------------
 *)
