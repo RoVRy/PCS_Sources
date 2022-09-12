@@ -13,7 +13,7 @@ TITLE = 'Split DATE_AND_TIME to the two separate DWORDs'
 VERSION: '0.1'
 AUTHOR: RoVRy
 NAME: SplitDT
-FAMILY: SGOK
+FAMILY: AdvLibRR
 KNOW_HOW_PROTECT
 
 VAR_INPUT            
