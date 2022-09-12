@@ -2,7 +2,7 @@ FUNCTION_BLOCK WinCC32b
 { S7_m_c := 'true' }
 TITLE   = 'WinCC Interface for 32 Bit'
 NAME    : 'WinCC32b'
-FAMILY  : 'SGOK'
+FAMILY  : 'AdvLibRR'
 AUTHOR  : 'RoVRy'
 VERSION : '0.2'
 
