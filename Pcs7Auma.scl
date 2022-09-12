@@ -4,7 +4,7 @@ TITLE = 'AUMA actuator driver'
 VERSION: '0.6'
 AUTHOR: RoVRy
 NAME: Pcs7Auma
-FAMILY: Channel
+FAMILY: AdvLibRR
 
 KNOW_HOW_PROTECT
 
