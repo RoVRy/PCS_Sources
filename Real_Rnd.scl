@@ -11,7 +11,7 @@ FUNCTION Real_Rnd { S7_blockview := 'big';
     VERSION: '0.1'
     AUTHOR: RoVRy
     NAME: Real_Rnd
-    FAMILY: Math
+    FAMILY: AdvLibRR
 
 KNOW_HOW_PROTECT
 
