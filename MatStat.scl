@@ -13,9 +13,9 @@ FUNCTION_BLOCK MatStat {
                        }
 TITLE = 'Material flow stats'
 VERSION: '2.7'
-AUTHOR: AdvLibRR
+AUTHOR: RoVRy
 NAME: MatStat
-FAMILY: SGOK
+FAMILY: AdvLibRR
 KNOW_HOW_PROTECT
 (*
 ===============================================================================
