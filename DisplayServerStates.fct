@@ -1,0 +1,158 @@
+#include "apdefap.h"
+
+#pragma option (mbcs)
+
+#pragma code ("user32.dll")
+    int GetSystemMetrics(int nIndex);
+#pragma code()
+
+#define SM_CXFRAME    32
+#define SM_CYFRAME    33
+#define SM_CXBORDER   5
+#define SM_CYBORDER   6
+#define SM_CYCAPTION  4
+#define SM_CXVSCROLL  20
+
+#define MASK_ONLINE           0x0000001
+#define MASK_MASTER           0x0000004
+#define MASK_POSTPONED_FAULT  0x0000008
+
+BOOL  DisplayServerStates(const char* lpszPictureName)
+{
+	BOOL bRet = TRUE;
+	DWORD dwFlags = 0;
+	int nLineIndex = 0;
+	int nPCIndex = 0;
+	char szObjSymbolicName[30];
+	char szObjPCNames[2][30]; // szObjPCNames[0] is the main server, szObjPCNames[1] redundant (if exists)
+	char szObjLineUnder[30];
+	char szTemp[128];
+	char* pszStateLimiter;
+	const unsigned char* pszParsePtr1 = GetTagChar("@local::@RedundancyWatchPCStates");
+	const unsigned char* pszParsePtr2 = pszParsePtr1;
+	char* pszParentPicture;
+	char* pszParentWindow;
+	int nPictureHeight = 0;
+	int nVisiblePartHeight = 0;
+	int nWindowWidth = 0;
+
+	// The tag "@RedundancyWatchPCStates" has a value of the following format:
+	//     "Flags=0::symbolic_name_A:computer_name_1=1:computer_2=0::longer_symbolic_name_B:computer_3=1::sym...."
+
+	if(NULL == pszParsePtr1)
+		return FALSE;
+
+	if(_mbsnicmp((unsigned char*) pszParsePtr1, (unsigned char*)"Flags=", _mbslen((unsigned char*)"Flags=")) == 0)
+		dwFlags = atol((char*) pszParsePtr1 + _mbslen((unsigned char*)"Flags="));  // atol goes until the first non-number is found
+
+	while(nLineIndex++ < 32)
+	{
+		sprintf(szObjSymbolicName, "@SymName_%02d", nLineIndex);
+		sprintf(szObjPCNames[0], "@PCMain_%02d", nLineIndex);
+		sprintf(szObjPCNames[1], "@PCRed_%02d", nLineIndex);
+		sprintf(szObjLineUnder, "@LineUnder_%02d", nLineIndex);
+
+		if(pszParsePtr1 != NULL)
+			pszParsePtr1 = _mbsstr(pszParsePtr1, (unsigned char*)"::");
+		if(bRet && pszParsePtr1 != NULL)
+		{
+			// now we are at the beginning of the new server-pair ("::symbolic_name_A:computer_name_1=1:comp...")
+
+			// extract and set the symbolic name
+			pszParsePtr1 = pszParsePtr1 + 2; // behind "::"
+			pszParsePtr2 = _mbschr(pszParsePtr1, ':');
+			if(NULL == pszParsePtr2)
+			{
+				printf("DisplayServerStates.fct ERROR: Invalid format of the string in status tag!\r\n");
+				bRet = FALSE;
+				continue;
+			}
+			memset(szTemp, 0, sizeof(szTemp));
+			strncpy(szTemp, (char*)pszParsePtr1, pszParsePtr2 - pszParsePtr1);
+			SetPropChar(lpszPictureName, szObjSymbolicName, "Text", szTemp);
+			SetPropBOOL(lpszPictureName, szObjSymbolicName, "Visible", TRUE);
+			SetPropBOOL(lpszPictureName, szObjLineUnder, "Visible", TRUE);
+
+			// extract and set the name and state of the main PC (szObjPCNames[0]) and redundant PC (szObjPCNames[1])
+			for(nPCIndex = 0 ; nPCIndex <= 1 ; nPCIndex++)
+			{
+				pszParsePtr1 = pszParsePtr2 + 1; // behind ":"
+				pszParsePtr2 = _mbschr(pszParsePtr1, ':');
+				memset(szTemp, 0, sizeof(szTemp));
+				if(pszParsePtr2 != NULL)
+					strncpy(szTemp, (char*)pszParsePtr1, pszParsePtr2 - pszParsePtr1);
+				else
+					strcpy(szTemp, (char*)pszParsePtr1);  // this is the last entry -> take the rest of the string
+
+				pszStateLimiter = (char*)_mbschr((unsigned char*)szTemp, '=');
+				if(pszStateLimiter != NULL)
+				{
+					int nOnePCState = atoi (pszStateLimiter + 1);
+					if (MASK_ONLINE & nOnePCState)
+					{
+						if (MASK_POSTPONED_FAULT & nOnePCState)
+						{
+							// postponed fault
+							SetPropWord(lpszPictureName, szObjPCNames[nPCIndex], "ForeColor", RGB(224, 160, 0));
+							SetPropBOOL(lpszPictureName, szObjPCNames[nPCIndex], "FontBold", FALSE);
+							SetPropBOOL(lpszPictureName, szObjPCNames[nPCIndex], "FontItalic", FALSE);
+						}
+						else
+						{
+							// everything ok
+							SetPropWord(lpszPictureName, szObjPCNames[nPCIndex], "ForeColor", (MASK_MASTER & nOnePCState ? RGB(0, 160, 0) : RGB(112, 160, 112)));
+							SetPropBOOL(lpszPictureName, szObjPCNames[nPCIndex], "FontBold", TRUE);
+							SetPropBOOL(lpszPictureName, szObjPCNames[nPCIndex], "FontItalic", FALSE);
+						}
+					}
+					else
+					{
+						// not running or fault
+						SetPropWord(lpszPictureName, szObjPCNames[nPCIndex], "ForeColor", RGB(220, 0, 0));
+						SetPropBOOL(lpszPictureName, szObjPCNames[nPCIndex], "FontBold", FALSE);
+						SetPropBOOL(lpszPictureName, szObjPCNames[nPCIndex], "FontItalic", TRUE);
+					}
+					*(pszStateLimiter) = '\0'; // cut off the "=x" part
+				}
+				SetPropChar(lpszPictureName, szObjPCNames[nPCIndex], "Text", szTemp);
+				SetPropBOOL(lpszPictureName, szObjPCNames[nPCIndex], "Visible", TRUE);
+
+				if(nPCIndex == 0 && (pszParsePtr2 != NULL ? *(pszParsePtr2 + 1) == ':' : TRUE))
+				{
+					// end of the string, no more entries OR "::" is already the next server-pair, which means no redundant PC exists
+					SetPropChar(lpszPictureName, szObjPCNames[1], "Text", "");
+					break;
+				}
+			}
+		}
+		else
+		{
+			// all unnecessary objects must be set invisible
+			SetPropBOOL(lpszPictureName, szObjSymbolicName, "Visible", FALSE);
+			SetPropBOOL(lpszPictureName, szObjPCNames[0], "Visible", FALSE);
+			SetPropBOOL(lpszPictureName, szObjPCNames[1], "Visible", FALSE);
+			SetPropBOOL(lpszPictureName, szObjLineUnder, "Visible", FALSE);
+
+			if(nPictureHeight == 0)
+				nPictureHeight = GetPropWord(lpszPictureName, szObjSymbolicName, "Top") + 8;
+		}
+	}
+
+	if(nPictureHeight <= 328)
+		nVisiblePartHeight = nPictureHeight;
+	else
+		nVisiblePartHeight = 328; // max. is 32 lines, it would be too much!
+
+	pszParentPicture = GetParentPicture(lpszPictureName);
+	pszParentWindow = GetParentPictureWindow(lpszPictureName);
+
+	nWindowWidth = GetPropWord(lpszPictureName, "", "Width") + GetSystemMetrics(SM_CXBORDER) * 2 + GetSystemMetrics(SM_CXFRAME) * 2 + 2;
+	if(nPictureHeight > nVisiblePartHeight)
+		nWindowWidth = nWindowWidth + GetSystemMetrics(SM_CXVSCROLL); // extra room for vertical scroll bar
+
+	SetPropWord(lpszPictureName, "", "Height", nPictureHeight );
+	SetPropWord(pszParentPicture, pszParentWindow, "Height", nVisiblePartHeight + GetSystemMetrics(SM_CYCAPTION) + GetSystemMetrics(SM_CYBORDER) * 2 + GetSystemMetrics(SM_CYFRAME) * 2 + 2);
+	SetPropWord(pszParentPicture, pszParentWindow, "Width", nWindowWidth);
+
+	return bRet;
+}
