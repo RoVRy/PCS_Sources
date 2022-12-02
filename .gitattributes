@@ -1,1 +1,2 @@
-*.au3 linguist-detectable=false
+*.scl linguist-language=Pascal
+*.fct linguist-language=C
