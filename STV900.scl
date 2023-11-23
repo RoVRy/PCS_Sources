@@ -1,0 +1,448 @@
+FUNCTION FC200 : VOID
+TITLE = 'STV900 driver'
+VERSION: '0.2'
+AUTHOR: RoVRy
+NAME: STV900dr
+FAMILY: Channel
+
+KNOW_HOW_PROTECT
+
+// Block Parameters
+VAR_INPUT
+
+    SW1In   : WORD := 16#0000;      //Status Word 1
+    SW2In   : WORD := 16#0000;      //Status Word 2
+    SW3In   : WORD := 16#0000;      //Actual frequency (1 = 0.01 Hz)
+    SW4In   : WORD := 16#0000;      //Setpoint frequency (1 = 0.01 Hz)
+    SW5In   : WORD := 16#0000;      //DC voltage (1 = 0.1V)
+    SW6In   : WORD := 16#0000;      //Output voltage (1 = 1V)
+    SW7In   : WORD := 16#0000;      //Output current (1 = 0.1A)
+    SW8In   : WORD := 16#0000;      //Output power (1 = 0.1%)
+    SW9In   : WORD := 16#0000;      //Output torque (1 = 0.1%)
+    SW10In  : WORD := 16#0000;      //RPM (1 = 1rpm)
+    SW11In  : WORD := 16#0000;      //Discrete outputs state (0x0000-0x01FF)
+    SW12In  : WORD := 16#0000;      //Error number
+
+    SP          : STRUCT
+        Value   : REAL := 0.0;      //Value
+        ST      : BYTE := 16#FF;    //Status
+    END_STRUCT;                     //Frequency setpoint (0-100%)
+
+    FreqScale   : STRUCT
+        High    : REAL := 50.0;     //High value
+        Low     : REAL := 0.0;      //Low value
+    END_STRUCT;                     //Frequency output (for %) scale
+
+    FwdRun      : STRUCT
+        Value   : BOOL := FALSE;    //Value
+        ST      : BYTE := 16#FF;    //Status
+    END_STRUCT;                     //Run forward 
+
+    RevRun      : STRUCT
+        Value   : BOOL := FALSE;    //Value
+        ST      : BYTE := 16#FF;    //Status
+    END_STRUCT;                     //Run backward
+    
+    FwdJog { S7_visible := 'false' }    : STRUCT
+        Value   : BOOL := FALSE;    //Value
+        ST      : BYTE := 16#FF;    //Status
+    END_STRUCT;                     //Jogging forward
+
+    RevJog { S7_visible := 'false' }    : STRUCT
+        Value   : BOOL := FALSE;    //Value
+        ST      : BYTE := 16#FF;    //Status
+    END_STRUCT;                     //Jogging backward
+
+    Stop    : STRUCT
+        Value   : BOOL := FALSE;    //Value
+        ST      : BYTE := 16#FF;    //Status
+    END_STRUCT;                     //Stop
+
+    StopJog { S7_visible := 'false' }   : STRUCT
+        Value   : BOOL := FALSE;    //Value
+        ST      : BYTE := 16#FF;    //Status
+    END_STRUCT;                     //Jogging to stop
+        
+    EmStop  : STRUCT
+        Value   : BOOL := FALSE;    //Value
+        ST      : BYTE := 16#FF;    //Status
+    END_STRUCT;                     //Coast to stop (emergency stop)
+
+    Reset   : STRUCT
+        Value   : BOOL := FALSE;    //Value
+        ST      : BYTE := 16#FF;    //Status
+    END_STRUCT;                     //Faults reset
+
+    Feature { S7_visible := 'false' }   : STRUCT
+        Bit0    : BOOL := TRUE;     //Setpoint: 0 - Hz, 1 - %
+        Bit1    : BOOL := TRUE;     //Frequency output: 0 - Hz, 1 - %
+        Bit2    : BOOL := TRUE;     //Frequency setpoint: 0 - Hz, 1 - %
+        Bit3    : BOOL := FALSE;    //Reserve
+        Bit4    : BOOL := FALSE;    //Reserve
+        Bit5    : BOOL := FALSE;    //Reserve
+        Bit6    : BOOL := FALSE;    //Reserve
+        Bit7    : BOOL := FALSE;    //Reserve
+        Bit8    : BOOL := FALSE;    //Reserve
+        Bit9    : BOOL := FALSE;    //Reserve
+        Bit10   : BOOL := FALSE;    //Reserve
+        Bit11   : BOOL := FALSE;    //Reserve
+        Bit12   : BOOL := FALSE;    //Reserve
+        Bit13   : BOOL := FALSE;    //Reserve
+        Bit14   : BOOL := FALSE;    //Reserve
+        Bit15   : BOOL := FALSE;    //Reserve
+        Bit16   : BOOL := FALSE;    //Reserve
+        Bit17   : BOOL := FALSE;    //Reserve
+        Bit18   : BOOL := FALSE;    //Reserve
+        Bit19   : BOOL := FALSE;    //Reserve
+        Bit20   : BOOL := FALSE;    //Reserve
+        Bit21   : BOOL := FALSE;    //Reserve
+        Bit22   : BOOL := FALSE;    //Reserve
+        Bit23   : BOOL := FALSE;    //Reserve
+        Bit24   : BOOL := FALSE;    //Reserve
+        Bit25   : BOOL := FALSE;    //Reserve
+        Bit26   : BOOL := FALSE;    //Reserve
+        Bit27   : BOOL := FALSE;    //Reserve
+        Bit28   : BOOL := FALSE;    //Reserve
+        Bit29   : BOOL := FALSE;    //Reserve
+        Bit30   : BOOL := FALSE;    //Reserve
+        Bit31   : BOOL := FALSE;    //Reserve
+    END_STRUCT;
+
+END_VAR
+
+VAR_OUTPUT
+
+    CW1Out   : WORD;                //Control Word 1
+    CW2Out   : WORD;                //Control Word 2
+
+    RdyToRun    : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Ready to run
+    
+    FbkFwdOut   : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Forward running feedback
+    
+    FbkRevOut   : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Reverse running feedback
+    
+    Stopped     : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Stopped
+
+    Fault       : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Faulty
+
+    Overload    : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Overload alarm
+
+    POFF        : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //POFF
+    
+    PreExcited  : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Pre-excited
+
+    MachineType { S7_visible := 'false' }   : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Machine type: 0 = Asynchronous, 1 = Synchronous
+
+    FreqOut     : STRUCT
+        Value   : REAL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Frequency output (Hz/%)
+
+    FreqSP      : STRUCT
+        Value   : REAL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Frequency setpoint (Hz/%)
+
+    VoltageDC   : STRUCT
+        Value   : REAL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //DC voltage (Volts)
+    
+    Voltage     : STRUCT
+        Value   : REAL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Output voltage (Volts)
+
+    Current     : STRUCT
+        Value   : REAL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Output current (Amps)
+
+    Power       : STRUCT
+        Value   : REAL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Output power (%)
+    
+    Torque      : STRUCT
+        Value   : REAL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Output torque (%)
+    
+    Speed       : STRUCT
+        Value   : REAL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Output rpm
+
+    DigIn0 { S7_visible := 'false' }    : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Discrete input 0 state
+
+    DigIn1 { S7_visible := 'false' }    : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Discrete input 1 state
+    
+    DigIn2 { S7_visible := 'false' }    : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Discrete input 2 state
+
+    DigIn3 { S7_visible := 'false' }    : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Discrete input 3 state
+
+    DigIn4 { S7_visible := 'false' }    : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Discrete input 4 state
+
+    DigIn5 { S7_visible := 'false' }    : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Discrete input 5 state
+
+    DigIn6 { S7_visible := 'false' }    : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Discrete input 6 state
+
+    DigIn7 { S7_visible := 'false' }    : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Discrete input 7 state
+
+    DigIn8 { S7_visible := 'false' }    : STRUCT
+        Value   : BOOL;             //Value
+        ST      : BYTE;             //Status
+    END_STRUCT;                     //Discrete input 8 state
+    
+    MotorNum { S7_visible := 'false' }  : INT;              //Motor number
+
+    ErrorNum { S7_visible := 'false' }  : INT;              //Error number
+
+END_VAR
+
+VAR_TEMP
+
+    tiSW1       : INT;
+    txFbkFwdOut : BOOL;
+    txFbkRevOut : BOOL;
+    txStop      : BOOL;
+    txFault     : BOOL;
+    txPOFF      : BOOL;
+    txPreExc    : BOOL;
+    twWord1     : WORD;
+    trReal      : REAL;
+    taxWord1 AT twWord1 : ARRAY[0..15] OF BOOL;
+    twWord2     : WORD;
+    taxWord2 AT twWord2 : ARRAY[0..15] OF BOOL;    
+
+    stInST      : STRUCT
+        b0  : BYTE;
+        b1  : BYTE;
+        b2  : BYTE;
+        b3  : BYTE;
+        b4  : BYTE;
+        b5  : BYTE;
+        b6  : BYTE;
+        b7  : BYTE;
+        b8  : BYTE;
+        b9  : BYTE;
+        b10 : BYTE;
+        b11 : BYTE;
+        b12 : BYTE;
+        b13 : BYTE;
+        b14 : BYTE;
+        b15 : BYTE;
+    END_STRUCT;
+    
+    tbSTWorst   : BYTE;
+    
+END_VAR
+
+VAR
+
+//    tSelST      : SelST16;    
+    
+END_VAR
+
+BEGIN
+
+    stInST.b0 := SP.ST;
+    stInST.b1 := FwdRun.ST;
+    stInST.b2 := RevRun.ST;
+    stInST.b3 := FwdJog.ST;
+    stInST.b4 := RevJog.ST;
+    stInST.b5 := Stop.ST;
+    stInST.b6 := StopJog.ST;
+    stInST.b7 := EmStop.ST;
+    stInST.b8 := Reset.ST;
+
+    tbSTWorst := SelST16(InST := stInST, Num:=9, SelPrio:=0);
+
+    txFbkFwdOut := FALSE;
+    txFbkRevOut := FALSE;
+    txStop      := FALSE;
+    txFault     := FALSE;
+    txPOFF      := FALSE;
+    txPreExc    := FALSE;
+
+    tiSW1 := WORD_TO_INT(SW1In);
+    
+    CASE tiSW1 OF
+        1 : txFbkFwdOut := TRUE;
+        2 : txFbkRevOut := TRUE;
+        3 : txStop      := TRUE;
+        4 : txFault     := TRUE;
+        5 : txPOFF      := TRUE;
+        6 : txPreExc    := TRUE;
+    ELSE:
+        txFbkFwdOut := FALSE;
+        txFbkRevOut := FALSE;
+        txStop      := FALSE;
+        txFault     := FALSE;
+        txPOFF      := FALSE;
+        txPreExc    := FALSE;
+    END_CASE;
+
+    twWord1 := SW2In;
+    RdyToRun.Value := taxWord1[0];              //Выделяем бит "Ready to Run"
+    RdyToRun.ST := tbSTWorst;
+
+    twWord2 := 16#0000;
+    taxWord2[0] := taxWord1[1];
+    taxWord2[1] := taxWord1[2];
+    MotorNum := WORD_TO_INT(twWord2);           //Выделяем биты номера мотора
+
+    MachineType.Value := taxWord1[3];           //Выделяем бит типа двигателя
+    MachineType.ST := tbSTWorst;
+    
+    trReal := 0.01 * INT_TO_REAL(WORD_TO_INT(SW3In));
+    IF Feature.Bit1 THEN
+        FreqOut.Value := (trReal - FreqScale.Low) / (FreqScale.High - FreqScale.Low) * 100.0;
+    ELSE
+        FreqOut.Value := trReal;
+    END_IF;
+    FreqOut.ST := tbSTWorst;
+    
+    trReal := 0.01 * INT_TO_REAL(WORD_TO_INT(SW4In));
+    IF Feature.Bit2 THEN
+        FreqSP.Value := (trReal - FreqScale.Low) / (FreqScale.High - FreqScale.Low) * 100.0;
+    ELSE
+        FreqSP.Value := trReal;
+    END_IF;
+    FreqSP.ST := tbSTWorst;
+
+    VoltageDC.Value := 0.1 * INT_TO_REAL(WORD_TO_INT(SW5In));
+    VoltageDC.ST := tbSTWorst;
+    Voltage.Value := INT_TO_REAL(WORD_TO_INT(SW6In));
+    Voltage.ST := tbSTWorst;
+    Current.Value := 0.1 * INT_TO_REAL(WORD_TO_INT(SW7In));
+    Current.ST := tbSTWorst;
+    Power.Value := 0.1 * INT_TO_REAL(WORD_TO_INT(SW8In));
+    Power.ST := tbSTWorst;
+    Torque.Value := 0.1 * INT_TO_REAL(WORD_TO_INT(SW9In));
+    Torque.ST := tbSTWorst;
+    Speed.Value := INT_TO_REAL(WORD_TO_INT(SW10In));
+    Speed.ST := tbSTWorst;
+
+    twWord1 := SW11In;
+    
+    DigIn0.Value := taxWord1[0];
+    DigIn0.ST := tbSTWorst;
+    
+    DigIn1.Value := taxWord1[1];
+    DigIn1.ST := tbSTWorst;
+    
+    DigIn2.Value := taxWord1[2];
+    DigIn2.ST := tbSTWorst;
+    
+    DigIn3.Value := taxWord1[3];
+    DigIn3.ST := tbSTWorst;
+    
+    DigIn4.Value := taxWord1[4];
+    DigIn4.ST := tbSTWorst;
+    
+    DigIn5.Value := taxWord1[5];
+    DigIn5.ST := tbSTWorst;
+    
+    DigIn6.Value := taxWord1[6];
+    DigIn6.ST := tbSTWorst;
+    
+    DigIn7.Value := taxWord1[7];
+    DigIn7.ST := tbSTWorst;
+    
+    DigIn8.Value := taxWord1[8];
+    DigIn8.ST := tbSTWorst;
+    
+    ErrorNum := WORD_TO_INT(SW12In);
+
+    IF FwdRun.Value THEN
+        twWord1 := 16#0001;
+    END_IF;
+    
+    IF RevRun.Value THEN
+        twWord1 := 16#0002;
+    END_IF;
+    
+    IF FwdJog.Value THEN
+        twWord1 := 16#0003;
+    END_IF;
+    
+    IF RevJog.Value THEN
+        twWord1 := 16#0004;
+    END_IF;
+    
+    IF Stop.Value THEN
+        twWord1 := 16#0005;
+    END_IF;
+    
+    IF EmStop.Value THEN
+        twWord1 := 16#0006;
+    END_IF;
+    
+    IF Reset.Value THEN
+        twWord1 := 16#0007;
+    END_IF;
+    
+    IF StopJog.Value THEN
+        twWord1 := 16#0008;
+    END_IF;
+    
+    CW1Out := twWord1;
+    IF Feature.Bit0 THEN
+        CW2Out := INT_TO_WORD(REAL_TO_INT(SP.Value * 100.0));
+    ELSE
+        CW2Out := INT_TO_WORD(REAL_TO_INT((SP.Value * (FreqScale.High - FreqScale.Low) / 100.0 + FreqScale.Low) * 100.0));
+    END_IF;
+     
+END_FUNCTION
