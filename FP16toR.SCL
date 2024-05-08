@@ -1,0 +1,87 @@
+FUNCTION FP16toR : VOID
+TITLE = 'Convert FP16 format to standard REAL'
+VERSION: '0.5'
+AUTHOR: RoVRy
+NAME: FP16toR
+FAMILY: CONVERT
+
+KNOW_HOW_PROTECT
+
+VAR_INPUT
+    In                  : WORD  := W#16#0000;
+    CSF                 : BOOL  := FALSE;
+END_VAR
+
+VAR_OUTPUT
+    Out                 : STRUCT
+        Value           : REAL  := 0.0;
+        ST              : BYTE  := B#16#FF;
+    END_STRUCT;
+END_VAR
+
+VAR_TEMP
+    twIn                : WORD;
+    taIn AT twIn        : ARRAY[0..15] OF BOOL;
+    trOut               : REAL;
+    taOut AT trOut      : ARRAY[0..31] OF BOOL;
+    tbExp               : BYTE;
+    taExp AT tbExp      : ARRAY[0..7] OF BOOL;
+    tiExp               : INT;
+END_VAR
+
+BEGIN
+    twIn := In;
+
+    // Copy the sign bit (the most left)
+    taOut[7]  := taIn[7];
+
+    // Copy exponent bits
+    taExp[4] := taIn[6];
+    taExp[3] := taIn[5];
+    taExp[2] := taIn[4];
+    taExp[1] := taIn[3];
+    taExp[0] := taIn[2];
+
+    // Copy mantissa bits
+    taOut[14] := taIn[1];
+    taOut[13] := taIn[0];
+    taOut[12] := taIn[15];
+    taOut[11] := taIn[14];
+    taOut[10] := taIn[13];
+    taOut[9] := taIn[12];
+    taOut[8] := taIn[11];
+    taOut[23] := taIn[10];
+    taOut[22] := taIn[9];
+    taOut[21] := taIn[8];
+
+    // Converting 5-bit exponent format to 8-bit exp.fmt
+    tiExp := BYTE_TO_INT(tbExp) + 112;
+
+    IF tiExp = 143 THEN
+        tiExp := 255;
+    END_IF;
+    IF tiExp = 112 THEN
+        tiExp := 0;
+    END_IF;
+
+    tbExp := INT_TO_BYTE(tiExp);
+
+    // Copy exponent bits to out
+    taOut[6]  := taExp[7];
+    taOut[5]  := taExp[6];
+    taOut[4]  := taExp[5];
+    taOut[3]  := taExp[4];
+    taOut[2]  := taExp[3];
+    taOut[1]  := taExp[2];
+    taOut[0]  := taExp[1];
+    taOut[15] := taExp[0];
+
+    Out.Value := trOut;
+    
+    IF CSF THEN
+        Out.ST := B#16#00;
+    ELSE
+        Out.ST := B#16#80;        
+    END_IF;
+    
+END_FUNCTION

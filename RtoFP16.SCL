@@ -1,0 +1,97 @@
+FUNCTION RtoFP16 : VOID
+TITLE = 'Convert REAL format to standard FP16'
+VERSION: '0.4'
+AUTHOR: RoVRy
+NAME: RtoFP16
+FAMILY: CONVERT
+
+KNOW_HOW_PROTECT
+
+VAR_INPUT
+    In                  : STRUCT
+        Value   : REAL := 0.0;
+        ST      : BYTE := B#16#FF;
+    END_STRUCT;
+END_VAR
+
+VAR_OUTPUT
+    Out                 : WORD := W#16#0000;
+    Bad                 : BOOL  := FALSE;
+END_VAR
+
+VAR_TEMP
+    trIn                : REAL;
+    taIn AT trIn        : ARRAY[0..31] OF BOOL;
+    twOut               : WORD;
+    taOut AT twOut      : ARRAY[0..15] OF BOOL;
+    tbExp               : BYTE;
+    taExp AT tbExp      : ARRAY[0..7] OF BOOL;
+    tiExp               : INT;
+    tiMant              : INT;
+    taMant AT tiMant    : ARRAY[0..15] OF BOOL;
+END_VAR
+
+BEGIN
+    trIn := In.Value;
+    Bad := FALSE;
+    
+    // Copy exponent bits
+    taExp[7] := taIn[6];
+    taExp[6] := taIn[5];
+    taExp[5] := taIn[4];
+    taExp[4] := taIn[3];
+    taExp[3] := taIn[2];
+    taExp[2] := taIn[1];
+    taExp[1] := taIn[0];
+    taExp[0] := taIn[15];
+
+    // Copy mantissa bits
+    taMant[8]  := taIn[21];
+    taMant[9]  := taIn[22];
+    taMant[10] := taIn[23];
+    taMant[11] := taIn[8];
+    taMant[12] := taIn[9];
+    taMant[13] := taIn[10];
+    taMant[14] := taIn[11];
+    taMant[15] := taIn[12];
+    taMant[0]  := taIn[13];
+    taMant[1]  := taIn[14];
+
+    // Converting 8-bit exponent format to 5-bit exp.fmt
+    tiExp := BYTE_TO_INT(tbExp) - 112;
+
+    IF taIn[20] THEN
+        tiMant := tiMant + 1;
+        IF tiMant = 1024 THEN
+            tiMant := 0;
+            tiExp := tiExp + 1;
+        END_IF;
+    END_IF;
+
+    IF tiExp < 1 THEN
+        tiExp := 0;
+    END_IF;
+    IF tiExp > 30 THEN
+        tiExp := 31;
+    END_IF;
+
+    twOut := INT_TO_WORD(tiMant);
+    tbExp := INT_TO_BYTE(tiExp);
+
+    // Copy the sign bit (the most left)
+    taOut[7] := taIn[7];
+    
+    // Copy exponent bits to out
+    taOut[6] := taExp[4];
+    taOut[5] := taExp[3];
+    taOut[4] := taExp[2];
+    taOut[3] := taExp[1];
+    taOut[2] := taExp[0];
+
+    Out := twOut;
+    
+    IF In.ST = 16#00 OR In.ST = 16#28 OR In.ST = 16#68 OR In.ST = 16#78 THEN
+        Bad := TRUE;
+    END_IF;
+    
+END_FUNCTION
