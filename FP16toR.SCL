@@ -1,6 +1,6 @@
 FUNCTION FP16toR : VOID
 TITLE = 'Convert FP16 format to standard REAL'
-VERSION: '0.5'
+VERSION: '0.7'
 AUTHOR: RoVRy
 NAME: FP16toR
 FAMILY: CONVERT
@@ -22,14 +22,17 @@ END_VAR
 VAR_TEMP
     twIn                : WORD;
     taIn AT twIn        : ARRAY[0..15] OF BOOL;
-    trOut               : REAL;
-    taOut AT trOut      : ARRAY[0..31] OF BOOL;
+    taOut               : ARRAY[0..31] OF BOOL;
+    trOut AT taOut      : REAL;
     tbExp               : BYTE;
     taExp AT tbExp      : ARRAY[0..7] OF BOOL;
     tiExp               : INT;
 END_VAR
 
 BEGIN
+    trOut := 0.0;
+    tbExp := B#16#00;
+
     twIn := In;
 
     // Copy the sign bit (the most left)
@@ -53,6 +56,19 @@ BEGIN
     taOut[23] := taIn[10];
     taOut[22] := taIn[9];
     taOut[21] := taIn[8];
+    taOut[20] := FALSE;
+    taOut[19] := FALSE;
+    taOut[18] := FALSE;
+    taOut[17] := FALSE;
+    taOut[16] := FALSE;
+    taOut[31] := FALSE;
+    taOut[30] := FALSE;
+    taOut[29] := FALSE;
+    taOut[28] := FALSE;
+    taOut[27] := FALSE;
+    taOut[26] := FALSE;
+    taOut[25] := FALSE;
+    taOut[24] := FALSE;
 
     // Converting 5-bit exponent format to 8-bit exp.fmt
     tiExp := BYTE_TO_INT(tbExp) + 112;
