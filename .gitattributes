@@ -1,2 +1,4 @@
 *.scl linguist-language=Pascal
 *.fct linguist-language=C
+
+*.*	working-tree-encoding=cp1251	eol=crlf
