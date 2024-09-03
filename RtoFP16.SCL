@@ -1,6 +1,6 @@
-FUNCTION RtoFP16 : VOID
+FUNCTION FC77 : VOID
 TITLE = 'Convert REAL format to standard FP16'
-VERSION: '0.4'
+VERSION: '0.7'
 AUTHOR: RoVRy
 NAME: RtoFP16
 FAMILY: CONVERT
@@ -20,77 +20,90 @@ VAR_OUTPUT
 END_VAR
 
 VAR_TEMP
+
     trIn                : REAL;
     taIn AT trIn        : ARRAY[0..31] OF BOOL;
+
     twOut               : WORD;
+    tiMant AT twOut     : INT;
     taOut AT twOut      : ARRAY[0..15] OF BOOL;
-    tbExp               : BYTE;
-    taExp AT tbExp      : ARRAY[0..7] OF BOOL;
+
     tiExp               : INT;
-    tiMant              : INT;
-    taMant AT tiMant    : ARRAY[0..15] OF BOOL;
+    taExp AT tiExp      : ARRAY[0..15] OF BOOL;
+
+    tiShift             : INT;
+    tiRound             : INT;
+    twRound AT tiRound  : WORD;
 END_VAR
 
 BEGIN
-    trIn := In.Value;
-    Bad := FALSE;
+    trIn := In.Value;                                                           // Get an input value
+    Bad := FALSE;                                                               // Initialize "bad" state
     
-    // Copy exponent bits
-    taExp[7] := taIn[6];
-    taExp[6] := taIn[5];
-    taExp[5] := taIn[4];
-    taExp[4] := taIn[3];
-    taExp[3] := taIn[2];
-    taExp[2] := taIn[1];
-    taExp[1] := taIn[0];
-    taExp[0] := taIn[15];
+    tiExp := 0;                                                                 // Initialize internal vars to avoid garbage bits
+    tiMant := 0;
+    tiRound := 1;
+   
+    taExp[15] := taIn[6];                                                       // Copy exponent bits
+    taExp[14] := taIn[5];
+    taExp[13] := taIn[4];
+    taExp[12] := taIn[3];
+    taExp[11] := taIn[2];
+    taExp[10] := taIn[1];
+    taExp[9]  := taIn[0];
+    taExp[8]  := taIn[15];
 
-    // Copy mantissa bits
-    taMant[8]  := taIn[21];
-    taMant[9]  := taIn[22];
-    taMant[10] := taIn[23];
-    taMant[11] := taIn[8];
-    taMant[12] := taIn[9];
-    taMant[13] := taIn[10];
-    taMant[14] := taIn[11];
-    taMant[15] := taIn[12];
-    taMant[0]  := taIn[13];
-    taMant[1]  := taIn[14];
+    taOut[1]  := taIn[14];                                                      // Copy mantissa bits
+    taOut[0]  := taIn[13];
+    taOut[15] := taIn[12];
+    taOut[14] := taIn[11];
+    taOut[13] := taIn[10];
+    taOut[12] := taIn[9];
+    taOut[11] := taIn[8];
+    taOut[10] := taIn[23];
+    taOut[9]  := taIn[22];
+    taOut[8]  := taIn[21];
 
-    // Converting 8-bit exponent format to 5-bit exp.fmt
-    tiExp := BYTE_TO_INT(tbExp) - 112;
+    tiExp := tiExp - 112;                                                       // Converting 8-bit exponent format to 5-bit exponent format (-128...+127 -> -16...+15)
 
-    IF taIn[20] THEN
-        tiMant := tiMant + 1;
-        IF tiMant = 1024 THEN
-            tiMant := 0;
-            tiExp := tiExp + 1;
+    IF tiExp < -9 THEN                                                          // REAL too small for FP16 and goes to machine null
+        tiExp := 0;
+        tiMant := 0;
+    END_IF;
+
+    IF tiExp >= -9 AND tiExp < 1 THEN                                           // Processing subnormal
+        tiShift := 1 - tiExp;                                                   // How many bit should we shift to make mantissa subnormal
+        tiExp := 0;                                                             // Exponent should be 0
+        twRound := SHL(IN := twRound, N := tiShift - 1);                        // Make a value to round the mantissa
+        tiMant := tiMant + tiRound;                                             // Add to mantissa for rounding LS-bit
+        taOut[2] := 1;                                                          // Emulate mantissa's most significant hidden bit
+        twOut := SHR(IN := twOut, N := tiShift);                                // Shift the mantissa
+    ELSE
+        IF taIn[20] THEN
+            tiMant := tiMant + 1;
+            IF tiMant = 1024 THEN
+                tiMant := 0;
+                tiExp := tiExp + 1;
+            END_IF;
         END_IF;
     END_IF;
 
-    IF tiExp < 1 THEN
-        tiExp := 0;
-    END_IF;
     IF tiExp > 30 THEN
         tiExp := 31;
+        tiMant := 0;
     END_IF;
 
-    twOut := INT_TO_WORD(tiMant);
-    tbExp := INT_TO_BYTE(tiExp);
+    taOut[7] := taIn[7];                                                        // Copy the sign bit (the most left)
 
-    // Copy the sign bit (the most left)
-    taOut[7] := taIn[7];
-    
-    // Copy exponent bits to out
-    taOut[6] := taExp[4];
-    taOut[5] := taExp[3];
-    taOut[4] := taExp[2];
-    taOut[3] := taExp[1];
-    taOut[2] := taExp[0];
+    taOut[6] := taExp[12];                                                      // Copy exponent bits to the temporal Out
+    taOut[5] := taExp[11];
+    taOut[4] := taExp[10];
+    taOut[3] := taExp[9];
+    taOut[2] := taExp[8];
 
-    Out := twOut;
+    Out := twOut;                                                               // Copy the final result to the Out
     
-    IF In.ST = 16#00 OR In.ST = 16#28 OR In.ST = 16#68 OR In.ST = 16#78 THEN
+    IF In.ST = 16#00 OR In.ST = 16#28 OR In.ST = 16#68 OR In.ST = 16#78 THEN    //Check the input status to define the "bad" state
         Bad := TRUE;
     END_IF;
     
