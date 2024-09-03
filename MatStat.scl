@@ -1,34 +1,27 @@
-FUNCTION_BLOCK MatStat {
-                        S7_m_c := 'true';
-                        S7_blockview := 'big';
-                        S7_tasklist := 'OB100';
-                        Scl_OverwriteBlocks := 'y';
-                        Scl_CreateObjectCode := 'y';
-                        Scl_OptimizeObjectCode := 'y';
-                        Scl_MonitorArrayLimits := 'n';
-                        Scl_CreateDebugInfo := 'n';
-                        Scl_S7ServerActive := 'n';
-                        GenerateReferenceData := 'y';
-                        SetMaximumStringLength := '254'
-                       }
+FUNCTION_BLOCK MatStat { S7_m_c := 'true';
+                         S7_blockview := 'big';
+                         S7_read_back := 'true';
+                         S7_tasklist := 'OB100';
+                         Scl_OverwriteBlocks := 'y';
+                         Scl_CreateObjectCode := 'y';
+                         Scl_OptimizeObjectCode := 'y';
+                         Scl_MonitorArrayLimits := 'n';
+                         Scl_CreateDebugInfo := 'n';
+                         Scl_S7ServerActive := 'n';
+                         GenerateReferenceData := 'y';
+                         SetMaximumStringLength := '254' }
 TITLE = 'Material flow stats'
-VERSION: '2.7'
-AUTHOR: RoVRy
+VERSION: '2.10'
+AUTHOR: AdvLibRR
 NAME: MatStat
-FAMILY: AdvLibRR
+FAMILY: Count
 KNOW_HOW_PROTECT
 (*
-===============================================================================
-Для корректной работы блока предварительно из библиотеки APL должны быть
-импортированы следующие блоки:
-IEC/AD_DT_TM_APL [FC455]
-IEC/GE_DT_APL [FC456]
-IEC/LT_DT_APL [FC453]
-
-Также блок в своей работе использует системные функции:
+=======================================================================================================================
+Блок в своей работе использует системные функции:
 SFC1 "READ_CLK"
 SFC6 "RD_SINFO"
-===============================================================================
+=======================================================================================================================
 *)
 CONST
 
@@ -40,714 +33,618 @@ END_CONST
 
 VAR_INPUT
 
-    PV {
-        S7_visible := 'true';
-        S7_dynamic := 'true';
-        S7_m_c := 'true';
-        S7_xm_c := 'Value,true;';
-        S7_xqc := 'Value,true;'
-       } : STRUCT                                       // Current flow in
-             Value : REAL := 0.0;                       // Value
-             ST : BYTE := 16#FF;                        // Signal status
-           END_STRUCT;
+    PV          { S7_visible := 'true';
+                  S7_dynamic := 'true';
+                  S7_m_c := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;' }         : STRUCT
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal status
+    END_STRUCT;                                                                     // Current flow in
 
-    PV_Unit {
-             S7_m_c := 'true';
-             S7_visible := 'true';
-             S7_unit := ''
-            } : INT := 1322;                            // Unit of PV
+    PV_Unit     { S7_m_c := 'true';
+                  S7_visible := 'true';
+                  S7_unit := '' }                   : INT := 1322;                  // Unit of PV
 
-    Flow_Unit {
-                S7_m_c := 'true';
-                S7_visible := 'true';
-                S7_unit := ''
-               } : INT := 1328;                         // Material flow measure unit
+    Flow_Unit   { S7_m_c := 'true';
+                  S7_visible := 'true';
+                  S7_unit := '' }                   : INT := 1328;                  // Material flow measure unit
 
-    All_Unit {
-             S7_m_c := 'true';
-             S7_visible := 'true';
-             S7_unit := ''
-            } : INT := 1092;                            // Material measure unit
+    All_Unit    { S7_m_c := 'true';
+                  S7_visible := 'true';
+                  S7_unit := '' }                   : INT := 1092;                  // Material measure unit
 
-    TimeCnv {
-             S7_visible := 'true'
-            } : REAL := 3600.0;                         // "Time in" to "Time out" factor
+    TimeCnv     { S7_visible := 'true' }            : REAL := 3600.0;               // "Time in" to "Time out" factor
 
-    AmountCnv {
-               S7_visible := 'true'
-              } : REAL := 1000.0;                       // "Amount in' to "Amount out" factor
+    AmountCnv   { S7_visible := 'true' }            : REAL := 1000.0;               // "Amount in' to "Amount out" factor
 
-    TZOffset {
-              S7_visible := 'false'
-             } : TIME := T#3H;                          // TZ offset for Standard Time
+    TZOffset    { S7_visible := 'false' }           : TIME := T#9H;                 // Time Zone offset for Standard Time
 
-    DSTEn {
-           S7_visible := 'false'
-          } : BOOL := FALSE;                            // Enable DST advancing during the year
+    DSTEn       { S7_visible := 'false' }           : BOOL := FALSE;                // Enable DST advancing during the year
 
-    DSTBegin {
-              S7_visible := 'false'
-             } : DATE_AND_TIME;                         // Date and time for switch to DST
+    DSTBegin    { S7_visible := 'false' }           : DATE_AND_TIME;                // Date and time for switch to DST
 
-    DSTEnd {
-            S7_visible := 'false'
-           } : DATE_AND_TIME;                           // Date and time for return to Standard Time
+    DSTEnd      { S7_visible := 'false' }           : DATE_AND_TIME;                // Date and time for return to Standard Time
 
-    DSTOffset {
-               S7_visible := 'false'
-              } : TIME := T#1H;                         // DST shift
+    DSTOffset   { S7_visible := 'false' }           : TIME := T#1H;                 // DST shift
 
-    ChkoutHr {
-              S7_visible := 'false'
-             } : INT := 0;                              // Checkout hour (necessary for energy accounting)
+    ChkoutHr    { S7_visible := 'false' }           : INT := 10;                    // Checkout hour (necessary for energy accounting)
 
-    CntLiOp {
-             S7_visible := 'true'
-            } : STRUCT                                  // Count enable via 0 = Operator, 1 = Interconnection or SFC
-                  Value : BOOL := FALSE;                // Value
-                  ST : BYTE := 16#FF;                   // Signal status
-                END_STRUCT;
+    ShiftHBegin { S7_visible := 'false' }           : INT := 7;                     // Shift begin hour
+    
+    ShiftMBegin { S7_visible := 'false' }           : INT := 0;                     // Shift begin minutes
+
+    ShiftHEnd   { S7_visible := 'false' }           : INT := 19;                    // Shift end hour
+
+    ShiftMEnd   { S7_visible := 'false' }           : INT := 0;                     // Shift end minutes
+
+    CntLiOp     { S7_visible := 'true' }            : STRUCT
+        Value   : BOOL := FALSE;                                                    // Value
+        ST      : BYTE := 16#FF;                                                    // Signal status
+    END_STRUCT;                                                                     // Count enable via 0 = Operator, 1 = Interconnection or SFC
                 
-    CntEnLi {
-             S7_visible := 'true'
-            } : STRUCT                                  // 1 = Count enabled by interconnection or SFC (controlled by CntLiOp = 1)
-                  Value : BOOL := TRUE;                 // Value
-                  ST : BYTE := 16#FF;                   // Signal status
-                END_STRUCT;
+    CntEnLi     { S7_visible := 'true' }            : STRUCT
+        Value   : BOOL := TRUE;                                                     // Value
+        ST      : BYTE := 16#FF;                                                    // Signal status
+    END_STRUCT;                                                                     // 1 = Count enabled by interconnection or SFC (controlled by CntLiOp = 1)
 
-    CntEn {
-           S7_visible := 'false';
-           S7_link := 'false';
-           Op_Level := '3';
-           S7_m_c := 'true'
-          } : BOOL := TRUE;                             // Count enabled from operator
+    CntEn       { S7_visible := 'false';
+                  S7_link := 'false';
+                  Op_Level := '2';
+                  S7_m_c := 'true' }                : BOOL := TRUE;                 // Count enabled from operator
 
-    SimLiOp {
-             S7_visible := 'true'
-            } : STRUCT                                  // Simulation on/off via 0 = Operator, 1 = Interconnection or SFC
-                  Value : BOOL := FALSE;                // Value
-                  ST : BYTE := 16#FF;                   // Signal status
-                END_STRUCT;
+    SimLiOp     { S7_visible := 'true' }            : STRUCT
+        Value   : BOOL := FALSE;                                                    // Value
+        ST      : BYTE := 16#FF;                                                    // Signal status
+    END_STRUCT;                                                                     // Simulation on/off via 0 = Operator, 1 = Interconnection or SFC
 
-    SimOnLi {
-             S7_visible := 'true'
-            } : STRUCT                                  // 1 = Simulation activated by interconnection or SFC (controlled by SimLiOp = 1)
-                  Value : BOOL := FALSE;                // Value
-                  ST : BYTE := 16#FF;                   // Signal status
-                END_STRUCT;
+    SimOnLi     { S7_visible := 'true' }            : STRUCT
+        Value   : BOOL := FALSE;                                                    // Value
+        ST      : BYTE := 16#FF;                                                    // Signal status
+    END_STRUCT;                                                                     // 1 = Simulation activated by interconnection or SFC (controlled by SimLiOp = 1)
 
-    SimOn {
-           S7_visible := 'false';
-           S7_link := 'false';
-           Op_Level := '3';
-           S7_m_c := 'true'
-          } : BOOL := FALSE;                            // Simulation On/Off
+    SimOn       { S7_visible := 'false';
+                  S7_link := 'false';
+                  Op_Level := '3';
+                  S7_m_c := 'true' }                : BOOL := FALSE;                // Simulation On/Off
 
-    SimPV_Li {
-              S7_visible := 'true'
-             } : STRUCT                                 // Linkable simulation value of weight
-                   Value : REAL := 0.0;                 // Value
-                   ST : BYTE := 16#FF;                  // Signal status
-                 END_STRUCT;                   
+    SimPV_Li    { S7_visible := 'true' }            : STRUCT
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal status
+    END_STRUCT;                                                                     // Linkable simulation value of weight
 
-    SimPV {
-           S7_visible := 'false';
-           S7_link := 'false';
-           S7_m_c := 'true';
-           Op_Level := '1'
-          } : REAL := 0.0;                    // Simulation Value
+    SimPV       { S7_visible := 'false';
+                  S7_link := 'false';
+                  S7_m_c := 'true';
+                  Op_Level := '3' }                 : REAL := 0.0;                  // Simulation Value
 
-    RstLi {
-           S7_visible := 'true'
-          } : STRUCT                                    // Immediate reset all totalizers from external code
-                Value : BOOL := FALSE;                  // Value
-                ST : BYTE := 16#FF;                     // Signal status
-              END_STRUCT;
+    RstLi       { S7_visible := 'true' }            : STRUCT
+        Value   : BOOL := FALSE;                                                    // Value
+        ST      : BYTE := 16#FF;                                                    // Signal status
+    END_STRUCT;                                                                     // Immediate reset all totalizers from external code
 
-    RstOp {
-           S7_m_c := 'true';
-           S7_link := 'false';
-           S7_visible := 'false';
-           Op_Level := '3'
-          } : BOOL := FALSE;                  // Immediate reset all totalizers from faceplate
+    RstOp       { S7_m_c := 'true';
+                  S7_link := 'false';
+                  S7_visible := 'false';
+                  Op_Level := '2' }                 : BOOL := FALSE;                // Immediate reset all totalizers from faceplate
 
-    UserAna1 {
-              S7_m_c := 'true';
-              S7_visible := 'false';
-              S7_xm_c:='Value,true;';
-              S7_xqc:='Value,true;';
-              S7_xshortcut := 'Value,;'
-             } : STRUCT 
-                   Value : REAL := 0.0;
-                   ST : BYTE := 16#FF;
-                 END_STRUCT;                            // User analog input 1
+    UserAna1    { S7_m_c := 'true';
+                  S7_visible := 'false';
+                  S7_xm_c:='Value,true;';
+                  S7_xqc:='Value,true;';
+                  S7_xshortcut := 'Value,;' }       : STRUCT
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal status
+    END_STRUCT;                                                                     // User analog input 1
 
-    UA1Unit {
-             S7_visible := 'false';
-             S7_m_c := 'true';
-             S7_unit := ''
-            } : INT := 0;                               // Unit OF UserAna1
+    UA1Unit     { S7_visible := 'false';
+                  S7_m_c := 'true';
+                  S7_unit := '' }                   : INT := 0;                     // Unit OF UserAna1
 
-    UserAna2 {
-              S7_m_c := 'true';
-              S7_visible := 'false';
-              S7_xm_c:='Value,true;';
-              S7_xqc:='Value,true;';
-              S7_xshortcut := 'Value,;'
-             } : STRUCT
-                   Value : REAL := 0.0;
-                   ST : BYTE := 16#FF;
-                 END_STRUCT;                            // User analog input 2
+    UserAna2    { S7_m_c := 'true';
+                  S7_visible := 'false';
+                  S7_xm_c:='Value,true;';
+                  S7_xqc:='Value,true;';
+                  S7_xshortcut := 'Value,;' }       : STRUCT
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal status
+    END_STRUCT;                                                                     // User analog input 2
 
-    UA2Unit {
-             S7_visible := 'false';
-             S7_m_c := 'true';
-             S7_unit := ''
-            } : INT := 0;                               // Unit of UserAna2
+    UA2Unit     { S7_visible := 'false';
+                  S7_m_c := 'true';
+                  S7_unit := '' }                   : INT := 0;                     // Unit of UserAna2
 
-    SampleTime {
-                S7_sampletime := 'true';
-                S7_visible := 'false';
-                S7_link := 'false'
-               } : REAL := 1.0 ;                        // Sampling time [s]
+    SampleTime  { S7_sampletime := 'true';
+                  S7_visible := 'false';
+                  S7_link := 'false' }              : REAL := 1.0 ;                 // Sampling time [s]
 
-    SelFp1 {
-            BLK_Jump := '1';
-            S7_visible := 'false'
-           } : ANY;                                     // Select Faceplate 1
+    SelFp1      { BLK_Jump := '1';
+                  S7_visible := 'false' }           : ANY;                          // Select Faceplate 1
 
-    SelFp2 {
-            BLK_Jump := '1';
-            S7_visible := 'false'
-           } : ANY;                                     // Select Faceplate 2
+    SelFp2      { BLK_Jump := '1';
+                  S7_visible := 'false' }           : ANY;                          // Select Faceplate 2
 
-    Feature {
-             S7_visible := 'false'
-            } : STRUCT                                  // Status of various features
-                  Bit0 : BOOL := TRUE;                  // 0 = Reset all values; 1 = keep last stored values
-                  Bit1 : BOOL := FALSE;                 // 1 = RstOp/RstLi also resets two hours all historical values
-                  Bit2 : BOOL := FALSE;                 // 1 = RstOp/RstLi also resets moving average value
-                  Bit3 : BOOL := FALSE;                 // 1 = RstOp/RstLi also resets all previous values
-                  Bit4 : BOOL := FALSE;                 // 1 = RstOp/RstLi also resets total value
-                  Bit5 : BOOL := FALSE;                 // 0 = Linked RstLi will block RstOp, 1 = RstLi and RstOp works side by side
-                  Bit6 : BOOL := FALSE;                 // 1 = All negative values will be substituted by zero
-                  Bit7 : BOOL := FALSE;
-                  Bit8 : BOOL := FALSE;
-                  Bit9 : BOOL := FALSE;
-                  Bit10 : BOOL := FALSE;
-                  Bit11 : BOOL := FALSE;
-                  Bit12 : BOOL := FALSE;
-                  Bit13 : BOOL := FALSE;
-                  Bit14 : BOOL := FALSE;
-                  Bit15 : BOOL := FALSE;
-                  Bit16 : BOOL := FALSE;
-                  Bit17 : BOOL := FALSE;
-                  Bit18 : BOOL := FALSE;
-                  Bit19 : BOOL := FALSE;
-                  Bit20 : BOOL := FALSE;
-                  Bit21 : BOOL := FALSE;
-                  Bit22 : BOOL := FALSE;
-                  Bit23 : BOOL := FALSE;
-                  Bit24 : BOOL := FALSE;
-                  Bit25 : BOOL := FALSE;
-                  Bit26 : BOOL := FALSE;
-                  Bit27 : BOOL := FALSE;
-                  Bit28 : BOOL := FALSE;
-                  Bit29 : BOOL := FALSE;
-                  Bit30 : BOOL := FALSE;
-                  Bit31 : BOOL := FALSE;
-                END_STRUCT;
+    Feature     { S7_visible := 'false' }           : STRUCT
+        Bit0    : BOOL := TRUE;                                                     // 0 = Reset all values; 1 = keep last stored values
+        Bit1    : BOOL := FALSE;                                                    // 1 = RstOp/RstLi also resets two hours all historical values
+        Bit2    : BOOL := FALSE;                                                    // 1 = RstOp/RstLi also resets moving average value
+        Bit3    : BOOL := FALSE;                                                    // 1 = RstOp/RstLi also resets all previous values
+        Bit4    : BOOL := FALSE;                                                    // 1 = RstOp/RstLi also resets total value
+        Bit5    : BOOL := FALSE;                                                    // 0 = Linked RstLi will block RstOp, 1 = RstLi and RstOp works side by side
+        Bit6    : BOOL := FALSE;                                                    // 1 = All negative values will be substituted by zero
+        Bit7    : BOOL := FALSE;                                                    // Not used
+        Bit8    : BOOL := FALSE;                                                    // Not used
+        Bit9    : BOOL := FALSE;                                                    // Not used
+        Bit10   : BOOL := FALSE;                                                    // Not used
+        Bit11   : BOOL := FALSE;                                                    // Not used
+        Bit12   : BOOL := FALSE;                                                    // Not used
+        Bit13   : BOOL := FALSE;                                                    // Not used
+        Bit14   : BOOL := FALSE;                                                    // Not used
+        Bit15   : BOOL := FALSE;                                                    // Not used
+        Bit16   : BOOL := FALSE;                                                    // Not used
+        Bit17   : BOOL := FALSE;                                                    // Not used
+        Bit18   : BOOL := FALSE;                                                    // Not used
+        Bit19   : BOOL := FALSE;                                                    // Not used
+        Bit20   : BOOL := FALSE;                                                    // Not used
+        Bit21   : BOOL := FALSE;                                                    // Not used
+        Bit22   : BOOL := FALSE;                                                    // Not used
+        Bit23   : BOOL := FALSE;                                                    // Not used
+        Bit24   : BOOL := FALSE;                                                    // Not used
+        Bit25   : BOOL := FALSE;                                                    // Not used
+        Bit26   : BOOL := FALSE;                                                    // Not used
+        Bit27   : BOOL := FALSE;                                                    // Not used
+        Bit28   : BOOL := FALSE;                                                    // Not used
+        Bit29   : BOOL := FALSE;                                                    // Not used
+        Bit30   : BOOL := FALSE;                                                    // Not used
+        Bit31   : BOOL := FALSE;                                                    // Not used
+    END_STRUCT;                                                                     // Status of various features
 
-    OS_Perm {
-             S7_visible := 'false'
-            } : STRUCT                                  // Operator Permissions
-                  Bit0 : BOOL := TRUE;
-                  Bit1 : BOOL := TRUE;
-                  Bit2 : BOOL := TRUE;
-                  Bit3 : BOOL := TRUE;
-                  Bit4 : BOOL := TRUE;
-                  Bit5 : BOOL := TRUE;                 // 1 = Operator can reset the totalizers
-                  Bit6 : BOOL := TRUE;                 // 1 = Operator can change the simulation value SimPV
-                  Bit7 : BOOL := TRUE;
-                  Bit8 : BOOL := TRUE;
-                  Bit9 : BOOL := TRUE;
-                  Bit10 : BOOL := TRUE;
-                  Bit11 : BOOL := TRUE;                // 1 = Operator can enable/disable function simulation
-                  Bit12 : BOOL := TRUE;                // 1 = Operator can enable/disable counting
-                  Bit13 : BOOL := TRUE;
-                  Bit14 : BOOL := TRUE;
-                  Bit15 : BOOL := TRUE;
-                  Bit16 : BOOL := TRUE;
-                  Bit17 : BOOL := TRUE;
-                  Bit18 : BOOL := TRUE;
-                  Bit19 : BOOL := TRUE;
-                  Bit20 : BOOL := TRUE;
-                  Bit21 : BOOL := TRUE;
-                  Bit22 : BOOL := TRUE;
-                  Bit23 : BOOL := TRUE;
-                  Bit24 : BOOL := TRUE;
-                  Bit25 : BOOL := TRUE;
-                  Bit26 : BOOL := TRUE;
-                  Bit27 : BOOL := TRUE;
-                  Bit28 : BOOL := TRUE;
-                  Bit29 : BOOL := TRUE;
-                  Bit30 : BOOL := TRUE;
-                  Bit31 : BOOL := TRUE;
-                END_STRUCT;
-    dwOS_Perm AT OS_Perm : DWORD;                       // Dword view at OS_Perm
-    byteOS_Perm AT OS_Perm : ARRAY[0..3] OF BYTE;       // Byte view at OS_Perm
+    OS_Perm     { S7_visible := 'false' }           : STRUCT
+        Bit0    : BOOL := TRUE;                                                     // Not used
+        Bit1    : BOOL := TRUE;                                                     // Not used
+        Bit2    : BOOL := TRUE;                                                     // Not used
+        Bit3    : BOOL := TRUE;                                                     // Not used
+        Bit4    : BOOL := TRUE;                                                     // Not used
+        Bit5    : BOOL := TRUE;                                                     // 1 = Operator can reset the totalizers
+        Bit6    : BOOL := TRUE;                                                     // 1 = Operator can change the simulation value SimPV
+        Bit7    : BOOL := TRUE;                                                     // Not used
+        Bit8    : BOOL := TRUE;                                                     // Not used
+        Bit9    : BOOL := TRUE;                                                     // Not used
+        Bit10   : BOOL := TRUE;                                                     // Not used
+        Bit11   : BOOL := TRUE;                                                     // 1 = Operator can enable/disable function simulation
+        Bit12   : BOOL := TRUE;                                                     // 1 = Operator can enable/disable counting
+        Bit13   : BOOL := TRUE;                                                     // Not used
+        Bit14   : BOOL := TRUE;                                                     // Not used
+        Bit15   : BOOL := TRUE;                                                     // Not used
+        Bit16   : BOOL := TRUE;                                                     // Not used
+        Bit17   : BOOL := TRUE;                                                     // Not used
+        Bit18   : BOOL := TRUE;                                                     // Not used
+        Bit19   : BOOL := TRUE;                                                     // Not used
+        Bit20   : BOOL := TRUE;                                                     // Not used
+        Bit21   : BOOL := TRUE;                                                     // Not used
+        Bit22   : BOOL := TRUE;                                                     // Not used
+        Bit23   : BOOL := TRUE;                                                     // Not used
+        Bit24   : BOOL := TRUE;                                                     // Not used
+        Bit25   : BOOL := TRUE;                                                     // Not used
+        Bit26   : BOOL := TRUE;                                                     // Not used
+        Bit27   : BOOL := TRUE;                                                     // Not used
+        Bit28   : BOOL := TRUE;                                                     // Not used
+        Bit29   : BOOL := TRUE;                                                     // Not used
+        Bit30   : BOOL := TRUE;                                                     // Not used
+        Bit31   : BOOL := TRUE;                                                     // Not used
+    END_STRUCT;                                                                     // Operator Permissions
+    dwOS_Perm AT OS_Perm                            : DWORD;                        // Dword view at OS_Perm
+    byteOS_Perm AT OS_Perm                          : ARRAY[0..3] OF BYTE;          // Byte view at OS_Perm
 
 END_VAR
 (*
-===============================================================================
+=======================================================================================================================
 *)
 VAR_OUTPUT
 
-    PV_Out {
-            S7_visible := 'true';
-            S7_dynamic := 'true';
-            S7_edit := 'para';
-            S7_m_c := 'true';
-            S7_xm_c := 'Value,true;';
-            S7_xqc := 'Value,true;';
-            S7_xshortcut := 'Value,Current flow in;';
-            S7_xarchive := 'Value,false;'
-           } : STRUCT                                   // Current flow out
-                 Value : REAL := 0.0;                   // Value
-                 ST : BYTE := 16#FF;                    // Signal status
-               END_STRUCT;
+    PV_Out      { S7_visible := 'true';
+                  S7_dynamic := 'true';
+                  S7_edit := 'para';
+                  S7_m_c := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;';
+                  S7_xshortcut := 'Value,Current flow in;';
+                  S7_xarchive := 'Value,false;' }   : STRUCT                                   
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal status
+    END_STRUCT;                                                                     // Current flow out (Pass-through)
 
-    CurFlow {
-             S7_m_c := 'true';
-             S7_dynamic := 'true';
-             S7_xm_c := 'Value,true;';
-             S7_xqc := 'Value,true;';
-             S7_xshortcut := 'Value,Current flow out;';
-             S7_xarchive := 'Value,false;'
-            } : STRUCT                                  // Material current flow
-                  Value : REAL := 0.0;                  // Value
-                  ST : BYTE := 16#FF;                   // Signal Status
-                END_STRUCT;
+    CurFlow     { S7_m_c := 'true';
+                  S7_dynamic := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;';
+                  S7_xshortcut := 'Value,Current flow out;';
+                  S7_xarchive := 'Value,false;' }   : STRUCT
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal Status
+    END_STRUCT;                                                                     // Material current flow with FlowUnit
 
-    Avg1h {
-           S7_m_c := 'true';
-           S7_dynamic := 'true';
-           S7_xm_c := 'Value,true;';
-           S7_xqc := 'Value,true;';
-           S7_xshortcut := 'Value,Avg. in 60 min.;';
-           S7_xarchive := 'Value,false;'
-          } : STRUCT                                    // Moving average of material in the last 60 minutes
-                Value : REAL := 0.0;                    // Value
-                ST : BYTE := 16#FF;                     // Signal Status
-              END_STRUCT;
+    Avg1h       { S7_m_c := 'true';
+                  S7_dynamic := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;';
+                  S7_xshortcut := 'Value,Avg. in 60 min.;';
+                  S7_xarchive := 'Value,false;' }   : STRUCT
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal Status
+    END_STRUCT;                                                                     // Moving average of material in the last 60 minutes
 
-    CurHour {
-             S7_m_c := 'true';
-             S7_dynamic := 'true';
-             S7_xm_c := 'Value,true;';
-             S7_xqc := 'Value,true;';
-             S7_xshortcut := 'Value,Current hour;';
-             S7_xarchive := 'Value,false;'
-            } : STRUCT                                  // The amount of material from the beginning of the hour
-                  Value : REAL := 0.0;                  // Value
-                  ST : BYTE := 16#FF;                   // Signal Status
-                END_STRUCT;
+    CurHour     { S7_m_c := 'true';
+                  S7_dynamic := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;';
+                  S7_xshortcut := 'Value,Current hour;';
+                  S7_xarchive := 'Value,false;' }   : STRUCT
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal Status
+    END_STRUCT;                                                                     // The amount of material from the beginning of the hour
 
-    PrevHour {
-              S7_m_c := 'true';
-              S7_dynamic := 'true';
-              S7_xm_c := 'Value,true;';
-              S7_xqc := 'Value,true;';
-              S7_xshortcut := 'Value,Previous hour;';
-              S7_xarchive := 'Value,false;'
-             } : STRUCT                                 // The amount of material from the previous hour
-                   Value : REAL := 0.0;                 // Value
-                   ST : BYTE := 16#FF;                  // Signal Status
-                 END_STRUCT;
+    PrevHour    { S7_m_c := 'true';
+                  S7_dynamic := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;';
+                  S7_xshortcut := 'Value,Previous hour;';
+                  S7_xarchive := 'Value,false;' }   : STRUCT
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal Status
+    END_STRUCT;                                                                     // The amount of material from the previous hour
 
-    BfPrHour {
-              S7_m_c := 'true';
-              S7_dynamic := 'true';
-              S7_xm_c := 'Value,true;';
-              S7_xqc := 'Value,true;';
-              S7_xshortcut := 'Value,Before prev. hour;';
-              S7_xarchive := 'Value,false;'
-             } : STRUCT                                 // The amount of material before previous hour
-                   Value : REAL := 0.0;                 // Value
-                   ST : BYTE := 16#FF;                  // Signal Status
-                 END_STRUCT;
+    BfPrHour    { S7_m_c := 'true';
+                  S7_dynamic := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;';
+                  S7_xshortcut := 'Value,Before prev. hour;';
+                  S7_xarchive := 'Value,false;' }   : STRUCT
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal Status
+    END_STRUCT;                                                                     // The amount of material before previous hour
 
-    OneHrAgo {
-              S7_m_c := 'true';
-              S7_dynamic := 'true';
-              S7_xm_c := 'Value,true;';
-              S7_xqc := 'Value,true;';
-              S7_xshortcut := 'Value,1 hour ago;';
-              S7_xarchive := 'Value,false;'
-             } : STRUCT                                 // The amount of material 1 hour ago
-                   Value : REAL := 0.0;                 // Value
-                   ST : BYTE := 16#FF;                  // Signal Status
-                 END_STRUCT;
+    OneHrAgo    { S7_m_c := 'true';
+                  S7_dynamic := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;';
+                  S7_xshortcut := 'Value,1 hour ago;';
+                  S7_xarchive := 'Value,false;' }   : STRUCT
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal Status
+    END_STRUCT;                                                                     // The amount of material 1 hour ago
 
-    CurShift {
-              S7_m_c := 'true';
-              S7_dynamic := 'true';
-              S7_xm_c := 'Value,true;';
-              S7_xqc := 'Value,true;';
-              S7_xshortcut := 'Value,Current shift;';
-              S7_xarchive := 'Value,false;'
-             } : STRUCT                                 // The amount of material from the beginning of shift
-                   Value : REAL := 0.0;                 // Value
-                   ST : BYTE := 16#FF;                  // Signal Status
-                 END_STRUCT;
+    CurShift    { S7_m_c := 'true';
+                  S7_dynamic := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;';
+                  S7_xshortcut := 'Value,Current shift;';
+                  S7_xarchive := 'Value,false;' }   : STRUCT                                 
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal Status
+    END_STRUCT;                                                                     // The amount of material from the beginning of shift
 
-    PrvShift {
-              S7_m_c := 'true';
-              S7_dynamic := 'true';
-              S7_xm_c := 'Value,true;';
-              S7_xqc := 'Value,true;';
-              S7_xshortcut := 'Value,Previous shift;';
-              S7_xarchive := 'Value,false;'
-             } : STRUCT                                 // The amount of material for the previous shift
-                   Value : REAL := 0.0;                 // Value
-                   ST : BYTE := 16#FF;                  // Signal Status
-                 END_STRUCT;
+    PrvShift    { S7_m_c := 'true';
+                  S7_dynamic := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;';
+                  S7_xshortcut := 'Value,Previous shift;';
+                  S7_xarchive := 'Value,false;' }   : STRUCT
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal Status
+    END_STRUCT;                                                                     // The amount of material for the previous shift
 
-    CurDay {
-            S7_m_c := 'true';
-            S7_dynamic := 'true';
-            S7_xm_c := 'Value,true;';
-            S7_xqc := 'Value,true;';
-            S7_xshortcut := 'Value,Current day;';
-            S7_xarchive := 'Value,false;'
-           } : STRUCT                                   // The amount of material from the beginning of the day
-                 Value : REAL := 0.0;                   // Value
-                 ST : BYTE := 16#FF;                    // Signal Status
-               END_STRUCT;
+    CurDay      { S7_m_c := 'true';
+                  S7_dynamic := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;';
+                  S7_xshortcut := 'Value,Current day;';
+                  S7_xarchive := 'Value,false;' }   : STRUCT
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal Status
+    END_STRUCT;                                                                     // The amount of material from the beginning of the day
 
-    PrevDay {
-             S7_m_c := 'true';
-             S7_dynamic := 'true';
-             S7_xm_c := 'Value,true;';
-             S7_xqc := 'Value,true;';
-             S7_xshortcut := 'Value,Previous day;';
-             S7_xarchive := 'Value,false;'
-            } : STRUCT                                  // The amount of material for the previous day
-                  Value : REAL := 0.0;                  // Value
-                  ST : BYTE := 16#FF;                   // Signal Status
-                END_STRUCT;
+    PrevDay     { S7_m_c := 'true';
+                  S7_dynamic := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;';
+                  S7_xshortcut := 'Value,Previous day;';
+                  S7_xarchive := 'Value,false;' }   : STRUCT
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal Status
+    END_STRUCT;                                                                     // The amount of material for the previous day
 
-    CurMonth {
-              S7_m_c := 'true';
-              S7_dynamic := 'true';
-              S7_xm_c := 'Value,true;';
-              S7_xqc := 'Value,true;';
-              S7_xshortcut := 'Value,Current month;';
-              S7_xarchive := 'Value,false;'
-             } : STRUCT                                 // The amount of material from the beginning of the month
-                   Value : REAL := 0.0;                 // Value
-                   ST : BYTE := 16#FF;                  // Signal Status
-                 END_STRUCT;
+    CurMonth    { S7_m_c := 'true';
+                  S7_dynamic := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;';
+                  S7_xshortcut := 'Value,Current month;';
+                  S7_xarchive := 'Value,false;' }   : STRUCT                                 
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal Status
+    END_STRUCT;                                                                     // The amount of material from the beginning of the month
                 
-    PrvMonth {
-              S7_m_c := 'true';
-              S7_dynamic := 'true';
-              S7_xm_c := 'Value,true;';
-              S7_xqc := 'Value,true;';
-              S7_xshortcut := 'Value,Previous month;';
-              S7_xarchive := 'Value,false;'
-             } : STRUCT                                 // The amount of material from the previous month
-                   Value : REAL := 0.0;                 // Value
-                   ST : BYTE := 16#FF;                  // Signal Status
-                 END_STRUCT;
+    PrvMonth    { S7_m_c := 'true';
+                  S7_dynamic := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;';
+                  S7_xshortcut := 'Value,Previous month;';
+                  S7_xarchive := 'Value,false;' }   : STRUCT                                 
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal Status
+    END_STRUCT;                                                                     // The amount of material from the previous month
 
-    CurYear {
-             S7_m_c := 'true';
-             S7_dynamic := 'true';
-             S7_xm_c := 'Value,true;';
-             S7_xqc := 'Value,true;';
-             S7_xshortcut := 'Value,Current year;';
-             S7_xarchive := 'Value,false;'
-            } : STRUCT                                  // The amount of material from the beginning of the year
-                  Value : REAL := 0.0;                  // Value
-                  ST : BYTE := 16#FF;                   // Signal Status
-                END_STRUCT;
+    CurYear     { S7_m_c := 'true';
+                  S7_dynamic := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;';
+                  S7_xshortcut := 'Value,Current year;';
+                  S7_xarchive := 'Value,false;' }   : STRUCT
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal Status
+    END_STRUCT;                                                                     // The amount of material from the beginning of the year
 
-    PrevYear {
-              S7_m_c := 'true';
-              S7_dynamic := 'true';
-              S7_xm_c := 'Value,true;';
-              S7_xqc := 'Value,true;';
-              S7_xshortcut := 'Value,Previous year;';
-              S7_xarchive := 'Value,false;'
-             } : STRUCT                                 // The amount OF material from the previous year
-                   Value : REAL := 0.0;                 // Value
-                   ST : BYTE := 16#FF;                  // Signal Status
-                 END_STRUCT;
+    PrevYear    { S7_m_c := 'true';
+                  S7_dynamic := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;';
+                  S7_xshortcut := 'Value,Previous year;';
+                  S7_xarchive := 'Value,false;' }   : STRUCT
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal Status
+    END_STRUCT;                                                                     // The amount OF material from the previous year
 
-    TotalMat {
-              S7_m_c := 'true';
-              S7_dynamic := 'true';
-              S7_xm_c := 'Value,true;';
-              S7_xqc := 'Value,true;';
-              S7_xshortcut := 'Value,Totalizer;';
-              S7_xarchive := 'Value,false;'
-             } : STRUCT                                 // The total amount of material
-                   Value : REAL := 0.0;                 // Value
-                   ST : BYTE := 16#FF;                  // Signal Status
-                 END_STRUCT;
+    TotalMat    { S7_m_c := 'true';
+                  S7_dynamic := 'true';
+                  S7_xm_c := 'Value,true;';
+                  S7_xqc := 'Value,true;';
+                  S7_xshortcut := 'Value,Totalizer;';
+                  S7_xarchive := 'Value,false;' }   : STRUCT                                 
+        Value   : REAL := 0.0;                                                      // Value
+        ST      : BYTE := 16#FF;                                                    // Signal Status
+    END_STRUCT;                                                                     // The total amount of material
 
-    OS_PermOut {
-                S7_visible:='false';
-                S7_m_c:='true'
-               } : DWORD := 16#FFFFFFFF;                // Original operator permissions
-    byteOS_PermOut AT OS_PermOut : ARRAY[0..3] OF BYTE; // View at OS_PermOut
+    OS_PermOut  { S7_visible:='false';
+                  S7_m_c:='true' }                  : DWORD := 16#FFFFFFFF;         // Original operator permissions
+    byteOS_PermOut AT OS_PermOut                    : ARRAY[0..3] OF BYTE;          // View at OS_PermOut
 
-    OS_PermLog {
-                S7_visible:='false';
-                S7_m_c:='true'
-               } : DWORD := 16#FFFFFFFF;                // Process manipulated operator permissions
-    byteOS_PermLog AT OS_PermLog : ARRAY[0..3] OF BYTE; // View at OS_PermLog
+    OS_PermLog  { S7_visible:='false';
+                  S7_m_c:='true' }                  : DWORD := 16#FFFFFFFF;         // Process manipulated operator permissions
+    byteOS_PermLog AT OS_PermLog                    : ARRAY[0..3] OF BYTE;          // View at OS_PermLog
 
-    ST_Worst {
-              S7_visible:='false';
-              S7_m_c:='true'
-             } : BYTE := 16#80;                         // Worst Signal Status
+    ST_Worst    { S7_visible:='false';
+                  S7_m_c:='true' }                  : BYTE := 16#80;                // Worst Signal Status
 
-    Status1 {
-             S7_m_c := 'true';
-             S7_visible := 'false';
-             S7_dynamic := 'true'
-            } : DWORD := 16#00000000;                   // Status 1
-    byteStatus1 AT Status1 : ARRAY[0..3] OF BYTE;
+    Status1     { S7_m_c := 'true';
+                  S7_visible := 'false';
+                  S7_dynamic := 'true' }            : DWORD := 16#00000000;         // Status 1
+    byteStatus1 AT Status1                          : ARRAY[0..3] OF BYTE;
 
-    Status2 {
-             S7_m_c := 'true';
-             S7_visible := 'false';
-             S7_dynamic := 'true'
-            } : DWORD := 16#00000000;                   // Status 2 - Not used, reserved for future
-    byteStatus2 AT Status2 : ARRAY[0..3] OF BYTE;
+    Status2     { S7_m_c := 'true';
+                  S7_visible := 'false';
+                  S7_dynamic := 'true' }            : DWORD := 16#00000000;         // Status 2 - Not used, reserved for future
+    byteStatus2 AT Status2                          : ARRAY[0..3] OF BYTE;
 
 END_VAR
 (*
-===============================================================================
+=======================================================================================================================
 *)
 VAR
 
-    TicksPerSec : INT := 1;
-    CurTick : INT := 0;
-    SuprTime : REAL := 0.0;                             // False hour adjustments suppression time span
+    TicksPerSec                                     : INT := 1;
+    CurTick                                         : INT := 0;
+    SuprTime                                        : REAL := 0.0;                  // False hour adjustments suppression time span
     MatPerTicks : REAL;
 
-    Cur_Hour : STRUCT
-                 DI_Part : DINT := 0;
-                 Re_Part : REAL := 0.0;
-               END_STRUCT;
+    Cur_Hour                                        : STRUCT
+        DI_Part : DINT := 0;
+        Re_Part : REAL := 0.0;
+    END_STRUCT;
 
-    Cur_Shift : STRUCT
-                  DI_Part : DINT := 0;
-                  Re_Part : REAL := 0.0;
-                END_STRUCT;
+    Cur_Shift                                       : STRUCT
+        DI_Part : DINT := 0;
+        Re_Part : REAL := 0.0;
+    END_STRUCT;
 
-    Cur_Day : STRUCT
-                DI_Part : DINT := 0;
-                Re_Part : REAL := 0.0;
-              END_STRUCT;
+    Cur_Day                                         : STRUCT
+        DI_Part : DINT := 0;
+        Re_Part : REAL := 0.0;
+    END_STRUCT;
 
-    Cur_Month : STRUCT
-                  DI_Part : DINT := 0;
-                  Re_Part : REAL := 0.0;
-                END_STRUCT;
+    Cur_Month                                       : STRUCT
+        DI_Part : DINT := 0;
+        Re_Part : REAL := 0.0;
+    END_STRUCT;
 
-    Cur_Year : STRUCT
-                 DI_Part : DINT := 0;
-                 Re_Part : REAL := 0.0;
-               END_STRUCT;
+    Cur_Year                                        : STRUCT
+        DI_Part : DINT := 0;
+        Re_Part : REAL := 0.0;
+    END_STRUCT;
 
-    Total : STRUCT
-              DI_Part : DINT := 0;
-              Re_Part : REAL := 0.0;
-            END_STRUCT;
+    Total                                           : STRUCT
+        DI_Part : DINT := 0;
+        Re_Part : REAL := 0.0;
+    END_STRUCT;
 
-    Loc_DT : DT;
-    Loc_DT_STRUCT AT Loc_DT : STRUCT
-        Year : BYTE;
-        Month : BYTE;
-        Day : BYTE;
-        Hour : BYTE;
-        Minute : BYTE;
-        Second : BYTE;
-        ms1 : BYTE;
-        ms2w : BYTE;
+    Loc_DT                                          : DT;
+    Loc_DT_STRUCT AT Loc_DT                         : STRUCT
+        Year    : BYTE;
+        Month   : BYTE;
+        Day     : BYTE;
+        Hour    : BYTE;
+        Minute  : BYTE;
+        Second  : BYTE;
+        ms1     : BYTE;
+        ms2w    : BYTE;
     END_STRUCT;
         
-    PrevValues : ARRAY[0..SecArray] OF REAL;          // Historical values array
+    PrevValues                                      : ARRAY[0..SecArray] OF REAL;   // Historical values array
 
 END_VAR
 (*
-===============================================================================
+=======================================================================================================================
 *)
 VAR_TEMP
 
-    RetValue : INT;
-    MatPerSec : REAL;
-    MatPerHour : REAL;
-    Zero : REAL;
-    tTrunc : DINT;
-    CurrPnt : INT;
-    CountEn : BOOL;
+    RetValue                                        : INT;
+    MatPerSec                                       : REAL;
+    MatPerHour                                      : REAL;
+    Zero                                            : REAL;
+    tTrunc                                          : DINT;
+    CurrPnt                                         : INT;
+    CountEn                                         : BOOL;
 
-    Actual : STRUCT
-        Value : REAL;
-        ST : BYTE;
+    Actual                                          : STRUCT
+        Value   : REAL;
+        ST      : BYTE;
     END_STRUCT;
 
-    UTC_DT : DT;
-    UTC_DT_STRUCT AT UTC_DT : STRUCT
-        Year : BYTE;
-        Month : BYTE;
-        Day : BYTE;
-        Hour : BYTE;
-        Minute : BYTE;
-        Second : BYTE;
-        ms1 : BYTE;
-        ms2w : BYTE;
+    UTC_DT                                          : DT;
+    UTC_DT_STRUCT AT UTC_DT                         : STRUCT
+        Year    : BYTE;
+        Month   : BYTE;
+        Day     : BYTE;
+        Hour    : BYTE;
+        Minute  : BYTE;
+        Second  : BYTE;
+        ms1     : BYTE;
+        ms2w    : BYTE;
     END_STRUCT;
 
-    TOP_SI: STRUCT                                      // Startinfo: read info of calling OB
-        EV_CLASS :BYTE;
-        EV_NUM :BYTE;
-        PRIORITY :BYTE;
-        NUM :BYTE;
-        TYP2_3 :BYTE;
-        TYP1 :BYTE;
-        ZI1 :WORD;
-        ZI2_3 :DWORD;
+    TOP_SI                                          : STRUCT                        // Startinfo: read info of calling OB
+        EV_CLASS    : BYTE;
+        EV_NUM      : BYTE;
+        PRIORITY    : BYTE;
+        NUM         : BYTE;
+        TYP2_3      : BYTE;
+        TYP1        : BYTE;
+        ZI1         : WORD;
+        ZI2_3       : DWORD;
     END_STRUCT;
 
-    START_UP_SI: STRUCT                                 // Startinfo: read info of recent Start-OB
-        EV_CLASS :BYTE;
-        EV_NUM :BYTE;
-        PRIORITY :BYTE;
-        NUM :BYTE;
-        TYP2_3 :BYTE;
-        TYP1 :BYTE;
-        ZI1 :WORD;
-        ZI2_3 :DWORD;
+    START_UP_SI                                     : STRUCT                       // Startinfo: read info of recent Start-OB
+        EV_CLASS    : BYTE;
+        EV_NUM      : BYTE;
+        PRIORITY    : BYTE;
+        NUM         : BYTE;
+        TYP2_3      : BYTE;
+        TYP1        : BYTE;
+        ZI1         : WORD;
+        ZI2_3       : DWORD;
     END_STRUCT;
 
-    tbitOS_PermLog : STRUCT
-                  Bit0 : BOOL;
-                  Bit1 : BOOL;
-                  Bit2 : BOOL;
-                  Bit3 : BOOL;
-                  Bit4 : BOOL;
-                  Bit5 : BOOL;                          // 1 = Operator can reset the totalizers
-                  Bit6 : BOOL;                          // 1 = Operator can change the simulation value SimPV
-                  Bit7 : BOOL;
-                  Bit8 : BOOL;
-                  Bit9 : BOOL;
-                  Bit10 : BOOL;
-                  Bit11 : BOOL;                         // 1 = Operator can enable/disable simulation
-                  Bit12 : BOOL;                         // 1 = Operator can enable/disable counting
-                  Bit13 : BOOL;
-                  Bit14 : BOOL;
-                  Bit15 : BOOL;
-                  Bit16 : BOOL;
-                  Bit17 : BOOL;
-                  Bit18 : BOOL;
-                  Bit19 : BOOL;
-                  Bit20 : BOOL;
-                  Bit21 : BOOL;
-                  Bit22 : BOOL;
-                  Bit23 : BOOL;
-                  Bit24 : BOOL;
-                  Bit25 : BOOL;
-                  Bit26 : BOOL;
-                  Bit27 : BOOL;
-                  Bit28 : BOOL;
-                  Bit29 : BOOL;
-                  Bit30 : BOOL;
-                  Bit31 : BOOL;
+    tbitOS_PermLog                                  : STRUCT
+        Bit0    : BOOL;
+        Bit1    : BOOL;
+        Bit2    : BOOL;
+        Bit3    : BOOL;
+        Bit4    : BOOL;
+        Bit5    : BOOL;                                                             // 1 = Operator can reset the totalizers
+        Bit6    : BOOL;                                                             // 1 = Operator can change the simulation value SimPV
+        Bit7    : BOOL;
+        Bit8    : BOOL;
+        Bit9    : BOOL;
+        Bit10   : BOOL;
+        Bit11   : BOOL;                                                             // 1 = Operator can enable/disable simulation
+        Bit12   : BOOL;                                                             // 1 = Operator can enable/disable counting
+        Bit13   : BOOL;
+        Bit14   : BOOL;
+        Bit15   : BOOL;
+        Bit16   : BOOL;
+        Bit17   : BOOL;
+        Bit18   : BOOL;
+        Bit19   : BOOL;
+        Bit20   : BOOL;
+        Bit21   : BOOL;
+        Bit22   : BOOL;
+        Bit23   : BOOL;
+        Bit24   : BOOL;
+        Bit25   : BOOL;
+        Bit26   : BOOL;
+        Bit27   : BOOL;
+        Bit28   : BOOL;
+        Bit29   : BOOL;
+        Bit30   : BOOL;
+        Bit31   : BOOL;
     END_STRUCT;
-    tdwOS_PermLog AT tbitOS_PermLog : DWORD;
-    tbyteOS_PermLog AT tbitOS_PermLog : ARRAY[0..3] OF BYTE;
+    tdwOS_PermLog AT tbitOS_PermLog                 : DWORD;
+    tbyteOS_PermLog AT tbitOS_PermLog               : ARRAY[0..3] OF BYTE;
 
-    tStatus1 : STRUCT                                   // Status 1
-                Bit0 : BOOL;                            // Count enabled
-                Bit1 : BOOL;                            // BatchEn - Not implemented!
-                Bit2 : BOOL;                            // SimOn
-                Bit3 : BOOL;                            // OosAct.Value - Not implemented!
-                Bit4 : BOOL;                            // OosLi.Value - Not implemented!
-                Bit5 : BOOL;                            // Not used
-                Bit6 : BOOL;                            // OnAct.Value - NOT implemented!
-                Bit7 : BOOL;                            // Not used
-                Bit8 : BOOL;                            // Not used
-                Bit9 : BOOL;                            // Not used
-                Bit10 : BOOL;                           // SimLiOp.Value
-                Bit11 : BOOL;                           // Delay of the PV_AH_Lim message - Not implemented!
-                Bit12 : BOOL;                           // Delay of the PV_WH_Lim message - Not implemented!
-                Bit13 : BOOL;                           // Delay of the PV_TH_Lim message - Not implemented!
-                Bit14 : BOOL;                           // Delay of the PV_TL_Lim message - Not implemented!
-                Bit15 : BOOL;                           // Delay of the PV_WL_Lim message - Not implemented!
-                Bit16 : BOOL;                           // Delay of the PV_AL_Lim message - Not implemented!
-                Bit17 : BOOL;                           // Collection of message delays - NOT implemented!
-                Bit18 : BOOL;                           // 1 = Suppessing hour transition is active
-                Bit19 : BOOL;                           // 1 = New hour has begun (impulse for one tick)
-                Bit20 : BOOL;                           // 1 = New shift has begun (impulse for one tick)
-                Bit21 : BOOL;                           // 1 = New day has begun (impulse for one tick)
-                Bit22 : BOOL;                           // 1 = New month has begun (impulse for one tick)
-                Bit23 : BOOL;                           // 1 = New year has begun (impulse for one tick)
-                Bit24 : BOOL;                           // Not used
-                Bit25 : BOOL;                           // Not used
-                Bit26 : BOOL;                           // Not used
-                Bit27 : BOOL;                           // Not used
-                Bit28 : BOOL;                           // Not used
-                Bit29 : BOOL;                           // 1 = DST is active
-                Bit30 : BOOL;                           // Auxiliary value 1 visible
-                Bit31 : BOOL;                           // Auxiliary value 2 visible
-    END_STRUCT;
-    tByteStatus1 AT tStatus1 : ARRAY[0..3] OF BYTE;
+    tStatus1                                        : STRUCT
+        Bit0    : BOOL;                                                             // Count enabled
+        Bit1    : BOOL;                                                             // BatchEn - Not implemented!
+        Bit2    : BOOL;                                                             // SimOn
+        Bit3    : BOOL;                                                             // OosAct.Value - Not implemented!
+        Bit4    : BOOL;                                                             // OosLi.Value - Not implemented!
+        Bit5    : BOOL;                                                             // Not used
+        Bit6    : BOOL;                                                             // OnAct.Value - NOT implemented!
+        Bit7    : BOOL;                                                             // Not used
+        Bit8    : BOOL;                                                             // Not used
+        Bit9    : BOOL;                                                             // Not used
+        Bit10   : BOOL;                                                             // SimLiOp.Value
+        Bit11   : BOOL;                                                             // Delay of the PV_AH_Lim message - Not implemented!
+        Bit12   : BOOL;                                                             // Delay of the PV_WH_Lim message - Not implemented!
+        Bit13   : BOOL;                                                             // Delay of the PV_TH_Lim message - Not implemented!
+        Bit14   : BOOL;                                                             // Delay of the PV_TL_Lim message - Not implemented!
+        Bit15   : BOOL;                                                             // Delay of the PV_WL_Lim message - Not implemented!
+        Bit16   : BOOL;                                                             // Delay of the PV_AL_Lim message - Not implemented!
+        Bit17   : BOOL;                                                             // Collection of message delays - NOT implemented!
+        Bit18   : BOOL;                                                             // 1 = Suppessing hour transition is active
+        Bit19   : BOOL;                                                             // 1 = New hour has begun (impulse for one tick)
+        Bit20   : BOOL;                                                             // 1 = New shift has begun (impulse for one tick)
+        Bit21   : BOOL;                                                             // 1 = New day has begun (impulse for one tick)
+        Bit22   : BOOL;                                                             // 1 = New month has begun (impulse for one tick)
+        Bit23   : BOOL;                                                             // 1 = New year has begun (impulse for one tick)
+        Bit24   : BOOL;                                                             // Not used
+        Bit25   : BOOL;                                                             // Not used
+        Bit26   : BOOL;                                                             // Not used
+        Bit27   : BOOL;                                                             // Not used
+        Bit28   : BOOL;                                                             // Not used
+        Bit29   : BOOL;                                                             // 1 = DST is active
+        Bit30   : BOOL;                                                             // Auxiliary value 1 visible
+        Bit31   : BOOL;                                                             // Auxiliary value 2 visible
+    END_STRUCT;                                                                     // Status 1
+    tByteStatus1 AT tStatus1                        : ARRAY[0..3] OF BYTE;
 
-    tStatus2 : STRUCT                                   // Status 2 - Not used, reserved for future 
-                Bit0 : BOOL;
-                Bit1 : BOOL;
-                Bit2 : BOOL;
-                Bit3 : BOOL;
-                Bit4 : BOOL;
-                Bit5 : BOOL;
-                Bit6 : BOOL;
-                Bit7 : BOOL;
-                Bit8 : BOOL;
-                Bit9 : BOOL;
-                Bit10 : BOOL;
-                Bit11 : BOOL;
-                Bit12 : BOOL;
-                Bit13 : BOOL;
-                Bit14 : BOOL;
-                Bit15 : BOOL;
-                Bit16 : BOOL;
-                Bit17 : BOOL;
-                Bit18 : BOOL;
-                Bit19 : BOOL;
-                Bit20 : BOOL;
-                Bit21 : BOOL;
-                Bit22 : BOOL;
-                Bit23 : BOOL;
-                Bit24 : BOOL;
-                Bit25 : BOOL;
-                Bit26 : BOOL;
-                Bit27 : BOOL;
-                Bit28 : BOOL;
-                Bit29 : BOOL;
-                Bit30 : BOOL;
-                Bit31 : BOOL;
-    END_STRUCT;
-    tByteStatus2 AT tStatus2 : ARRAY[0..3] OF BYTE;
+    tStatus2                                        : STRUCT
+        Bit0    : BOOL;
+        Bit1    : BOOL;
+        Bit2    : BOOL;
+        Bit3    : BOOL;
+        Bit4    : BOOL;
+        Bit5    : BOOL;
+        Bit6    : BOOL;
+        Bit7    : BOOL;
+        Bit8    : BOOL;
+        Bit9    : BOOL;
+        Bit10   : BOOL;
+        Bit11   : BOOL;
+        Bit12   : BOOL;
+        Bit13   : BOOL;
+        Bit14   : BOOL;
+        Bit15   : BOOL;
+        Bit16   : BOOL;
+        Bit17   : BOOL;
+        Bit18   : BOOL;
+        Bit19   : BOOL;
+        Bit20   : BOOL;
+        Bit21   : BOOL;
+        Bit22   : BOOL;
+        Bit23   : BOOL;
+        Bit24   : BOOL;
+        Bit25   : BOOL;
+        Bit26   : BOOL;
+        Bit27   : BOOL;
+        Bit28   : BOOL;
+        Bit29   : BOOL;
+        Bit30   : BOOL;
+        Bit31   : BOOL;
+    END_STRUCT;                                                                     // Status 2 - Not used, reserved for future
+    tByteStatus2 AT tStatus2                        : ARRAY[0..3] OF BYTE;
 
 END_VAR
 (*
-===============================================================================
+=======================================================================================================================
 *)
 BEGIN
 // Подготовительные операции
@@ -840,9 +737,9 @@ BEGIN
 // Каждую минуту вызываем коррекцию в локальный часовой пояс
 // А если включен DST, то дополнительно прибавляем "летнее время" и включаем бит в слове статусов
     IF UTC_DT_Struct.Second = 0 THEN
-        Loc_DT := AD_DT_TM_APL(T := UTC_DT, D := TZOffset);
-        IF DSTEn AND (GE_DT_APL(DT1 := Loc_DT, DT2 := DSTBegin) AND LT_DT_APL(DT1 := Loc_DT, DT2 := DSTEnd)) THEN
-            Loc_DT := AD_DT_TM_APL(T := Loc_DT, D := DSTOffset);
+        Loc_DT := UTC_DT + TZOffset;
+        IF DSTEn AND (UTC_DT >= DSTBegin) AND (UTC_DT < DSTEnd) THEN
+            Loc_DT := Loc_DT + DSTOffset;
             tStatus1.Bit29 := TRUE;
         ELSE
             tStatus1.Bit29 := FALSE;
@@ -883,8 +780,11 @@ BEGIN
 // Признак смены часа не будет устанавливаться, если час менялся менее SecToSuppress секунд назад
 // Защита от коррекции времени
     tStatus1.Bit19 := (Loc_DT_Struct.Minute = 0) AND (Loc_DT_Struct.Second = 0) AND NOT tStatus1.Bit18;
-// Бит новой смены, если час = 8 или 20 и час сменился
-    tStatus1.Bit20 := ((Loc_DT_Struct.Hour = 8) OR (Loc_DT_Struct.Hour = INT_TO_BCD(20))) AND tStatus1.Bit19;
+// Бит новой смены, если час = 7 или 19 и час сменился
+    tStatus1.Bit20 := ( (Loc_DT_Struct.Hour   = INT_TO_BCD(ShiftHBegin)) AND
+                        (Loc_DT_Struct.Minute = INT_TO_BCD(ShiftMBegin)) ) OR
+                      ( (Loc_DT_Struct.Hour   = INT_TO_BCD(ShiftHEnd)) AND
+                        (Loc_DT_Struct.Minute = INT_TO_BCD(ShiftMEnd)) ) AND tStatus1.Bit19;
 // Бит новых суток, если час = ChkoutHr и час сменился
     tStatus1.Bit21 := (BCD_TO_INT(Loc_DT_Struct.Hour) = ChkOutHr) AND tStatus1.Bit19;
 // Бит нового месяца, если день = 1 и день сменился
