@@ -1,0 +1,78 @@
+FUNCTION FC78 : VOID
+
+TITLE = 'Fused multiply-add'
+//
+// Выполняет то же, что и инструкция FMA в современных процессорах - умножение со сложением за раз
+// Out = In01 + In02 * In03
+// Статус-байт Out'a расчитывается исходя из статусов всех трёх входов
+//
+VERSION: '0.1'
+AUTHOR: RoVRy
+NAME: FMA
+FAMILY: Math
+
+KNOW_HOW_PROTECT
+
+VAR_IN_OUT
+
+    In01    { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+                                            Value   : REAL := 0.0;      // Value
+                                            ST      : BYTE := 16#FF;    // Signal status
+                                        END_STRUCT;                     // Addition operand
+    In02    { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+                                            Value   : REAL := 0.0;      // Value
+                                            ST      : BYTE := 16#FF;    // Signal status
+                                        END_STRUCT;                     // 1st multiply operand
+    In03    { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+                                            Value   : REAL := 0.0;      // Value
+                                            ST      : BYTE := 16#FF;    // Signal status
+                                        END_STRUCT;                     // 2nd multiply operand
+
+END_VAR
+
+VAR_OUTPUT
+
+    Out     { S7_visible := 'true';
+              S7_dynamic := 'true' }    : STRUCT
+                                            Value   : REAL := 0.0;      // Value
+                                            ST      : BYTE := 16#FF;    // Signal status
+                                        END_STRUCT;                     // Output
+
+END_VAR
+
+VAR_TEMP
+    
+    tSelST                                                  : STRUCT                            // Структура статусов для SelST16
+                                                                b0  : BYTE;
+                                                                b1  : BYTE;
+                                                                b2  : BYTE;
+                                                                b3  : BYTE;
+                                                                b4  : BYTE;
+                                                                b5  : BYTE;
+                                                                b6  : BYTE;
+                                                                b7  : BYTE;
+                                                                b8  : BYTE;
+                                                                b9  : BYTE;
+                                                                b10 : BYTE;
+                                                                b11 : BYTE;
+                                                                b12 : BYTE;
+                                                                b13 : BYTE;
+                                                                b14 : BYTE;
+                                                                b15 : BYTE;
+                                                              END_STRUCT;
+
+    
+END_VAR
+
+BEGIN
+
+    Out.Value := In01.Value + In02.Value * In03.Value;
+    tSelST.b0 := In01.ST;
+    tSelST.b1 := In02.ST;
+    tSelST.b2 := In03.ST;
+    Out.ST    := SelST16(InST :=  tSelST, Num := 3, SelPrio := 6);
+
+END_FUNCTION

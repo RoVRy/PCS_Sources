@@ -1,0 +1,31 @@
+FUNCTION DW_2W : VOID
+
+TITLE = 'Split DWORD to 2 WORDs'
+VERSION: '0.1'
+AUTHOR: RoVRy
+NAME: DW_2W
+FAMILY: CONVERT
+
+KNOW_HOW_PROTECT
+
+VAR_INPUT
+    In_DW               : DWORD := DW#16#00000000;
+END_VAR
+
+VAR_OUTPUT
+    Out_W0              : WORD  := W#16#0000;
+    Out_W1              : WORD  := W#16#0000;
+END_VAR
+
+VAR_TEMP
+    tDWord              : DWORD;
+    taWord AT tDWord    : ARRAY[0..1] OF WORD;
+END_VAR
+
+BEGIN
+
+    tDWord := In_DW;
+    Out_W0 := taWord[1];
+    Out_W1 := taWord[0];
+
+END_FUNCTION

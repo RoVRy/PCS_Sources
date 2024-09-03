@@ -1,0 +1,360 @@
+FUNCTION FC74 : VOID
+TITLE = 'RPN_Calc operations set'
+VERSION: '0.1'
+AUTHOR: AdvLibRR
+NAME: RPN_Ops
+FAMILY: Math
+
+KNOW_HOW_PROTECT
+
+(*
+Ѕлок хранит локальный массив операций дл€ выполнени€ строго одинаковых вычислений блоками RPN_Calc.
+¬ыход OpsOut прив€зываетс€ на входы OpRemLi необходимых RPN_Calc.
+*)
+// --------------------------------------------------------------------------------------------------------------------
+
+VAR_IN_OUT
+
+    Oper01  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 01
+    Oper02  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 02
+    Oper03  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 03
+    Oper04  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 04
+    Oper05  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 05
+    Oper06  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 06
+    Oper07  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 07
+    Oper08  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 08
+    Oper09  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 09
+    Oper10  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 10
+    Oper11  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 11
+    Oper12  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 12
+    Oper13  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 13
+    Oper14  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 14
+    Oper15  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 15
+    Oper16  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 16
+    Oper17  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 17
+    Oper18  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 18
+    Oper19  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 19
+    Oper20  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 20
+    Oper21  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 21
+    Oper22  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 22
+    Oper23  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 23
+    Oper24  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 24
+    Oper25  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 25
+    Oper26  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 26
+    Oper27  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 27
+    Oper28  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 28
+    Oper29  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 29
+    Oper30  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 30
+    Oper31  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 31
+    Oper32  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 32
+    Oper33  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 33
+    Oper34  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 34
+    Oper35  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 35
+    Oper36  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 36
+    Oper37  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 37
+    Oper38  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 38
+    Oper39  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 39
+    Oper40  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 40
+    Oper41  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 41
+    Oper42  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 42
+    Oper43  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 43
+    Oper44  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 44
+    Oper45  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 45
+    Oper46  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 46
+    Oper47  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 47
+    Oper48  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 48
+    Oper49  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 49
+    Oper50  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 50
+    Oper51  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 51
+    Oper52  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 52
+    Oper53  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 53
+    Oper54  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 54
+    Oper55  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 55
+    Oper56  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 56
+    Oper57  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 57
+    Oper58  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 58
+    Oper59  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 59
+    Oper60  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 60
+    Oper61  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 61
+    Oper62  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 62
+    Oper63  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 63
+    Oper64  { S7_visible := 'false';
+              S7_dynamic := 'true';
+              S7_enum := 'MathOps' }    : INT := 0;                 // Instruction 64
+END_VAR
+
+// --------------------------------------------------------------------------------------------------------------------
+
+VAR_OUTPUT
+
+    OpsOut  { S7_visible := 'true';
+              S7_dynamic := 'false' }   : STRUCT
+                                            Oper01  : INT := 0;     // Remote instruction 01
+                                            Oper02  : INT := 0;     // Remote instruction 02
+                                            Oper03  : INT := 0;     // Remote instruction 03
+                                            Oper04  : INT := 0;     // Remote instruction 04
+                                            Oper05  : INT := 0;     // Remote instruction 05
+                                            Oper06  : INT := 0;     // Remote instruction 06
+                                            Oper07  : INT := 0;     // Remote instruction 07
+                                            Oper08  : INT := 0;     // Remote instruction 08
+                                            Oper09  : INT := 0;     // Remote instruction 09
+                                            Oper10  : INT := 0;     // Remote instruction 10
+                                            Oper11  : INT := 0;     // Remote instruction 11
+                                            Oper12  : INT := 0;     // Remote instruction 12
+                                            Oper13  : INT := 0;     // Remote instruction 13
+                                            Oper14  : INT := 0;     // Remote instruction 14
+                                            Oper15  : INT := 0;     // Remote instruction 15
+                                            Oper16  : INT := 0;     // Remote instruction 16
+                                            Oper17  : INT := 0;     // Remote instruction 17
+                                            Oper18  : INT := 0;     // Remote instruction 18
+                                            Oper19  : INT := 0;     // Remote instruction 19
+                                            Oper20  : INT := 0;     // Remote instruction 20
+                                            Oper21  : INT := 0;     // Remote instruction 21
+                                            Oper22  : INT := 0;     // Remote instruction 22
+                                            Oper23  : INT := 0;     // Remote instruction 23
+                                            Oper24  : INT := 0;     // Remote instruction 24
+                                            Oper25  : INT := 0;     // Remote instruction 25
+                                            Oper26  : INT := 0;     // Remote instruction 26
+                                            Oper27  : INT := 0;     // Remote instruction 27
+                                            Oper28  : INT := 0;     // Remote instruction 28
+                                            Oper29  : INT := 0;     // Remote instruction 29
+                                            Oper30  : INT := 0;     // Remote instruction 30
+                                            Oper31  : INT := 0;     // Remote instruction 31
+                                            Oper32  : INT := 0;     // Remote instruction 32
+                                            Oper33  : INT := 0;     // Remote instruction 33
+                                            Oper34  : INT := 0;     // Remote instruction 34
+                                            Oper35  : INT := 0;     // Remote instruction 35
+                                            Oper36  : INT := 0;     // Remote instruction 36
+                                            Oper37  : INT := 0;     // Remote instruction 37
+                                            Oper38  : INT := 0;     // Remote instruction 38
+                                            Oper39  : INT := 0;     // Remote instruction 39
+                                            Oper40  : INT := 0;     // Remote instruction 40
+                                            Oper41  : INT := 0;     // Remote instruction 41
+                                            Oper42  : INT := 0;     // Remote instruction 42
+                                            Oper43  : INT := 0;     // Remote instruction 43
+                                            Oper44  : INT := 0;     // Remote instruction 44
+                                            Oper45  : INT := 0;     // Remote instruction 45
+                                            Oper46  : INT := 0;     // Remote instruction 46
+                                            Oper47  : INT := 0;     // Remote instruction 47
+                                            Oper48  : INT := 0;     // Remote instruction 48
+                                            Oper49  : INT := 0;     // Remote instruction 49
+                                            Oper50  : INT := 0;     // Remote instruction 50
+                                            Oper51  : INT := 0;     // Remote instruction 51
+                                            Oper52  : INT := 0;     // Remote instruction 52
+                                            Oper53  : INT := 0;     // Remote instruction 53
+                                            Oper54  : INT := 0;     // Remote instruction 54
+                                            Oper55  : INT := 0;     // Remote instruction 55
+                                            Oper56  : INT := 0;     // Remote instruction 56
+                                            Oper57  : INT := 0;     // Remote instruction 57
+                                            Oper58  : INT := 0;     // Remote instruction 58
+                                            Oper59  : INT := 0;     // Remote instruction 59
+                                            Oper60  : INT := 0;     // Remote instruction 60
+                                            Oper61  : INT := 0;     // Remote instruction 61
+                                            Oper62  : INT := 0;     // Remote instruction 62
+                                            Oper63  : INT := 0;     // Remote instruction 63
+                                            Oper64  : INT := 0;     // Remote instruction 64
+                                        END_STRUCT;                 // Instructions set for remote RPN_Calc
+END_VAR
+
+// --------------------------------------------------------------------------------------------------------------------
+
+VAR_TEMP
+
+END_VAR
+
+// --------------------------------------------------------------------------------------------------------------------
+
+BEGIN
+
+    OpsOut.Oper01 := Oper01;                                        // переносим все локальные операции в выходную структуру
+    OpsOut.Oper02 := Oper02;
+    OpsOut.Oper03 := Oper03;
+    OpsOut.Oper04 := Oper04;
+    OpsOut.Oper05 := Oper05;
+    OpsOut.Oper06 := Oper06;
+    OpsOut.Oper07 := Oper07;
+    OpsOut.Oper08 := Oper08;
+    OpsOut.Oper09 := Oper09;
+    OpsOut.Oper10 := Oper10;
+    OpsOut.Oper11 := Oper11;
+    OpsOut.Oper12 := Oper12;
+    OpsOut.Oper13 := Oper13;
+    OpsOut.Oper14 := Oper14;
+    OpsOut.Oper15 := Oper15;
+    OpsOut.Oper16 := Oper16;
+    OpsOut.Oper17 := Oper17;
+    OpsOut.Oper18 := Oper18;
+    OpsOut.Oper19 := Oper19;
+    OpsOut.Oper20 := Oper20;
+    OpsOut.Oper21 := Oper21;
+    OpsOut.Oper22 := Oper22;
+    OpsOut.Oper23 := Oper23;
+    OpsOut.Oper24 := Oper24;
+    OpsOut.Oper25 := Oper25;
+    OpsOut.Oper26 := Oper26;
+    OpsOut.Oper27 := Oper27;
+    OpsOut.Oper28 := Oper28;
+    OpsOut.Oper29 := Oper29;
+    OpsOut.Oper30 := Oper30;
+    OpsOut.Oper31 := Oper31;
+    OpsOut.Oper32 := Oper32;
+    OpsOut.Oper33 := Oper33;
+    OpsOut.Oper34 := Oper34;
+    OpsOut.Oper35 := Oper35;
+    OpsOut.Oper36 := Oper36;
+    OpsOut.Oper37 := Oper37;
+    OpsOut.Oper38 := Oper38;
+    OpsOut.Oper39 := Oper39;
+    OpsOut.Oper40 := Oper40;
+    OpsOut.Oper41 := Oper41;
+    OpsOut.Oper42 := Oper42;
+    OpsOut.Oper43 := Oper43;
+    OpsOut.Oper44 := Oper44;
+    OpsOut.Oper45 := Oper45;
+    OpsOut.Oper46 := Oper46;
+    OpsOut.Oper47 := Oper47;
+    OpsOut.Oper48 := Oper48;
+    OpsOut.Oper49 := Oper49;
+    OpsOut.Oper50 := Oper50;
+    OpsOut.Oper51 := Oper51;
+    OpsOut.Oper52 := Oper52;
+    OpsOut.Oper53 := Oper53;
+    OpsOut.Oper54 := Oper54;
+    OpsOut.Oper55 := Oper55;
+    OpsOut.Oper56 := Oper56;
+    OpsOut.Oper57 := Oper57;
+    OpsOut.Oper58 := Oper58;
+    OpsOut.Oper59 := Oper59;
+    OpsOut.Oper60 := Oper60;
+    OpsOut.Oper61 := Oper61;
+    OpsOut.Oper62 := Oper62;
+    OpsOut.Oper63 := Oper63;
+    OpsOut.Oper64 := Oper64;
+   
+END_FUNCTION

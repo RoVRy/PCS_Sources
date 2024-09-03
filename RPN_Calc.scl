@@ -1,0 +1,1391 @@
+FUNCTION FC75 : VOID
+TITLE = 'RPN stack calculator'
+VERSION: '0.8'
+AUTHOR: AdvLibRR
+NAME: RPN_Calc
+FAMILY: Math
+
+KNOW_HOW_PROTECT
+
+(*
+Блок выполняет вычисления (Ops.Step01...32) над стеком (taStack01...32) через обратную бесскобочную польскую запись.
+В своей работе использует FC369 "SelST16" из стандартной библиотеки APL
+
+Если для очередной операции в стеке не хватит значений - будет выход из блока с Out = 0.0 и установленным ErrorNum
+Если операции будут исчерпаны, а в стеке останутся данные - будет возвращено значение из текущего указателя стека
+Указатель стека всегда указывает на последнюю используемую ячейку
+В начале указатель = 0, это говорит, что стек пустой
+
+Код     Наименование операции                                       Изменение стека
+-----------------------------------------------------------------------------------
+0       Конец вычислений, выдача результата                               0
+-----------------------------------------------------------------------------------
+1       Изменение знака                                                   0
+-----------------------------------------------------------------------------------
+2       Сложение                                                          -1
+3       Вычитание                                                         -1
+4       Умножение                                                         -1
+5       Деление                                                           -1
+-----------------------------------------------------------------------------------
+6       Целочисленное деление (без остатка)                               -1
+7       Остаток от деления                                                -1
+8       Обратное значение (1/х)                                           0
+-----------------------------------------------------------------------------------
+9       Возведение в квадрат (2-я степень)                                0
+10      Возведение в произвольную степень                                 -1
+11      Корень квадратный                                                 0
+-----------------------------------------------------------------------------------
+12      Возведение e в произвольную степень                               0
+13      Возведение 10 в произвольную степень                              0
+14      Логарифм натуральный (Ln)                                         0
+15      Логарифм десятичный (Log10)                                       0
+-----------------------------------------------------------------------------------
+16      Синус                                                             0
+17      Косинус                                                           0
+18      Тангенс                                                           0
+19      Угловые градусы в радианы                                         0
+20      Угловые радианы в градусы                                         0
+-----------------------------------------------------------------------------------
+21      Сравнить два числа на вершине стека и оставить минимальное        -1
+22      Сравнить два числа на вершине стека и оставить максимальное       -1
+23      Вычислить среднее арифметическое двух чисел на вершине стека      -1
+-----------------------------------------------------------------------------------
+101     Положить на стек 1                                                +1
+102     Положить на стек корень из 2 = 1.41421356                         +1
+103     Положить на стек корень из 3 = 1.73205081                         +1
+104     Положить на стек e = 2.71828183 (основание натур. логарифма)      +1
+105     Положить на стек 3                                                +1
+106     Положить на стек pi = 3.14159265                                  +1
+107     Положить на стек 2pi = 6.28318531                                 +1
+108     Положить на стек 10                                               +1
+109     Положить на стек 60 (число секунд/минут в минуте/часе)            +1
+110     Положить на стек 100                                              +1
+111     Положить на стек 180 (половина окружности)                        +1
+112     Положить на стек 360 (полная окружность)                          +1
+113     Положить на стек 1'000                                            +1
+114     Положить на стек 1'440 (число минут в сутках)                     +1
+115     Положить на стек 3'600 (число секунд в часе)                      +1
+116     Положить на стек 86'400 (число секунд в сутках)                   +1
+117     Положить на стек 1'000'000                                        +1
+-----------------------------------------------------------------------------------
+200     Продублировать число на вершине стека                             +1
+201     Поменять местами числа на вершине стека и ниже на один            0
+202     Удалить число с вершины стека и уменьшить указатель на 1          -1
+-----------------------------------------------------------------------------------
+
+Внимание!
+Ячейки M0...M9 хранят значение только в пределах текущего цикла!
+
+-----------------------------------------------------------------------------------
+800 -\    
+...   - Положить значение с вершины стека в ячейку памяти M0...M9         0
+809 -/
+-----------------------------------------------------------------------------------
+820 -\    
+...   - Положить на вершину стека значение из ячейки памяти M0...M9       +1
+829 -/
+-----------------------------------------------------------------------------------
+850 -\    
+...   - Перенести значение с вершины стека в ячейку памяти M0...M9        -1
+859 -/
+-----------------------------------------------------------------------------------
+870 -\    
+...   - Заменить значение на вершине стека ячейкой памяти M0...M9         0
+879 -/
+-----------------------------------------------------------------------------------
+901 -\
+...   - Положить на стек In[01...32]                                      +1
+932 -/
+
+--------------------------------------------------------------------------------------------------------------------
+*)
+CONST
+    
+    MaxQueue    := 64;
+    MaxMem      := 10;
+    STPriority  := 6;
+    
+END_CONST
+
+// --------------------------------------------------------------------------------------------------------------------
+
+VAR_INPUT
+
+    CalcEn      { S7_visible := 'true';
+                  S7_dynamic := 'true';
+                  S7_xstring_0 := 'Value,Disabled;';
+                  S7_xstring_1 := 'Value,Enabled;' } : STRUCT
+                                                    Value   : BOOL := TRUE;         // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Disable/Enable calculation
+    OpLocRem    { S7_visible := 'true';
+                  S7_dynamic := 'true';
+                  S7_xstring_0 := 'Value,Local;';
+                  S7_xstring_1 := 'Value,Remote;' } : STRUCT
+                                                    Value   : BOOL := FALSE;         // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Select Local/Remote instructions set
+    OpRemLi     { S7_visible := 'false';
+                  S7_dynamic := 'false' }       : STRUCT
+                                                    Oper01  : INT := 0;             // Remote instruction 01
+                                                    Oper02  : INT := 0;             // Remote instruction 02
+                                                    Oper03  : INT := 0;             // Remote instruction 03
+                                                    Oper04  : INT := 0;             // Remote instruction 04
+                                                    Oper05  : INT := 0;             // Remote instruction 05
+                                                    Oper06  : INT := 0;             // Remote instruction 06
+                                                    Oper07  : INT := 0;             // Remote instruction 07
+                                                    Oper08  : INT := 0;             // Remote instruction 08
+                                                    Oper09  : INT := 0;             // Remote instruction 09
+                                                    Oper10  : INT := 0;             // Remote instruction 10
+                                                    Oper11  : INT := 0;             // Remote instruction 11
+                                                    Oper12  : INT := 0;             // Remote instruction 12
+                                                    Oper13  : INT := 0;             // Remote instruction 13
+                                                    Oper14  : INT := 0;             // Remote instruction 14
+                                                    Oper15  : INT := 0;             // Remote instruction 15
+                                                    Oper16  : INT := 0;             // Remote instruction 16
+                                                    Oper17  : INT := 0;             // Remote instruction 17
+                                                    Oper18  : INT := 0;             // Remote instruction 18
+                                                    Oper19  : INT := 0;             // Remote instruction 19
+                                                    Oper20  : INT := 0;             // Remote instruction 20
+                                                    Oper21  : INT := 0;             // Remote instruction 21
+                                                    Oper22  : INT := 0;             // Remote instruction 22
+                                                    Oper23  : INT := 0;             // Remote instruction 23
+                                                    Oper24  : INT := 0;             // Remote instruction 24
+                                                    Oper25  : INT := 0;             // Remote instruction 25
+                                                    Oper26  : INT := 0;             // Remote instruction 26
+                                                    Oper27  : INT := 0;             // Remote instruction 27
+                                                    Oper28  : INT := 0;             // Remote instruction 28
+                                                    Oper29  : INT := 0;             // Remote instruction 29
+                                                    Oper30  : INT := 0;             // Remote instruction 30
+                                                    Oper31  : INT := 0;             // Remote instruction 31
+                                                    Oper32  : INT := 0;             // Remote instruction 32
+                                                    Oper33  : INT := 0;             // Remote instruction 33
+                                                    Oper34  : INT := 0;             // Remote instruction 34
+                                                    Oper35  : INT := 0;             // Remote instruction 35
+                                                    Oper36  : INT := 0;             // Remote instruction 36
+                                                    Oper37  : INT := 0;             // Remote instruction 37
+                                                    Oper38  : INT := 0;             // Remote instruction 38
+                                                    Oper39  : INT := 0;             // Remote instruction 39
+                                                    Oper40  : INT := 0;             // Remote instruction 40
+                                                    Oper41  : INT := 0;             // Remote instruction 41
+                                                    Oper42  : INT := 0;             // Remote instruction 42
+                                                    Oper43  : INT := 0;             // Remote instruction 43
+                                                    Oper44  : INT := 0;             // Remote instruction 44
+                                                    Oper45  : INT := 0;             // Remote instruction 45
+                                                    Oper46  : INT := 0;             // Remote instruction 46
+                                                    Oper47  : INT := 0;             // Remote instruction 47
+                                                    Oper48  : INT := 0;             // Remote instruction 48
+                                                    Oper49  : INT := 0;             // Remote instruction 49
+                                                    Oper50  : INT := 0;             // Remote instruction 50
+                                                    Oper51  : INT := 0;             // Remote instruction 51
+                                                    Oper52  : INT := 0;             // Remote instruction 52
+                                                    Oper53  : INT := 0;             // Remote instruction 53
+                                                    Oper54  : INT := 0;             // Remote instruction 54
+                                                    Oper55  : INT := 0;             // Remote instruction 55
+                                                    Oper56  : INT := 0;             // Remote instruction 56
+                                                    Oper57  : INT := 0;             // Remote instruction 57
+                                                    Oper58  : INT := 0;             // Remote instruction 58
+                                                    Oper59  : INT := 0;             // Remote instruction 59
+                                                    Oper60  : INT := 0;             // Remote instruction 60
+                                                    Oper61  : INT := 0;             // Remote instruction 61
+                                                    Oper62  : INT := 0;             // Remote instruction 62
+                                                    Oper63  : INT := 0;             // Remote instruction 63
+                                                    Oper64  : INT := 0;             // Remote instruction 64
+                                                END_STRUCT;                         // Remote instructions set
+                                                
+END_VAR
+    
+VAR_IN_OUT                                                
+    Oper01      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 01
+    Oper02      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 02
+    Oper03      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 03
+    Oper04      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 04
+    Oper05      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 05
+    Oper06      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 06
+    Oper07      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 07
+    Oper08      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 08
+    Oper09      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 09
+    Oper10      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 10
+    Oper11      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 11
+    Oper12      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 12
+    Oper13      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 13
+    Oper14      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 14
+    Oper15      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 15
+    Oper16      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 16
+    Oper17      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 17
+    Oper18      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 18
+    Oper19      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 19
+    Oper20      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 20
+    Oper21      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 21
+    Oper22      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 22
+    Oper23      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 23
+    Oper24      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 24
+    Oper25      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 25
+    Oper26      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 26
+    Oper27      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 27
+    Oper28      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 28
+    Oper29      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 29
+    Oper30      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 30
+    Oper31      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 31
+    Oper32      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 32
+    Oper33      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 33
+    Oper34      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 34
+    Oper35      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 35
+    Oper36      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 36
+    Oper37      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 37
+    Oper38      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 38
+    Oper39      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 39
+    Oper40      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 40
+    Oper41      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 41
+    Oper42      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 42
+    Oper43      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 43
+    Oper44      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 44
+    Oper45      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 45
+    Oper46      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 46
+    Oper47      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 47
+    Oper48      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 48
+    Oper49      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 49
+    Oper50      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 50
+    Oper51      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 51
+    Oper52      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 52
+    Oper53      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 53
+    Oper54      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 54
+    Oper55      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 55
+    Oper56      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 56
+    Oper57      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 57
+    Oper58      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 58
+    Oper59      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 59
+    Oper60      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 60
+    Oper61      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 61
+    Oper62      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 62
+    Oper63      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 63
+    Oper64      { S7_visible := 'false';
+                  S7_dynamic := 'true';
+                  S7_enum := 'MathOps' }        : INT := 0;                         // Instruction 64
+    In01        { S7_visible := 'true';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 01 value
+    In02        { S7_visible := 'true';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 02 value
+    In03        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 03 value
+    In04        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 04 value
+    In05        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 05 value
+    In06        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 06 value
+    In07        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 07 value
+    In08        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 08 value
+    In09        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 09 value
+    In10        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 10 value
+    In11        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 11 value
+    In12        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 12 value
+    In13        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 13 value
+    In14        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 14 value
+    In15        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 15 value
+    In16        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 16 value
+    In17        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 17 value
+    In18        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 18 value
+    In19        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 19 value
+    In20        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 20 value
+    In21        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 21 value
+    In22        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 22 value
+    In23        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 23 value
+    In24        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 24 value
+    In25        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 25 value
+    In26        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 26 value
+    In27        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 27 value
+    In28        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 28 value
+    In29        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 29 value
+    In30        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 30 value
+    In31        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 31 value
+    In32        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Input 32 value
+END_VAR
+
+// --------------------------------------------------------------------------------------------------------------------
+
+VAR_OUTPUT
+
+    Result      { S7_visible := 'true';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Final calculation result
+    Mem0        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Memory cell #0
+    Mem1        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Memory cell #1
+    Mem2        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Memory cell #2
+    Mem3        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Memory cell #3
+    Mem4        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Memory cell #4
+    Mem5        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Memory cell #5
+    Mem6        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Memory cell #6
+    Mem7        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Memory cell #7
+    Mem8        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Memory cell #8
+    Mem9        { S7_visible := 'false';
+                  S7_dynamic := 'true' }        : STRUCT
+                                                    Value   : REAL := 0.0;          // Value
+                                                    ST      : BYTE := 16#FF;        // Signal status
+                                                END_STRUCT;                         // Memory cell #9
+    OpRemOut    { S7_visible := 'false';
+                  S7_dynamic := 'false' }       : STRUCT
+                                                    Oper01  : INT := 0;             // Remote instruction 01
+                                                    Oper02  : INT := 0;             // Remote instruction 02
+                                                    Oper03  : INT := 0;             // Remote instruction 03
+                                                    Oper04  : INT := 0;             // Remote instruction 04
+                                                    Oper05  : INT := 0;             // Remote instruction 05
+                                                    Oper06  : INT := 0;             // Remote instruction 06
+                                                    Oper07  : INT := 0;             // Remote instruction 07
+                                                    Oper08  : INT := 0;             // Remote instruction 08
+                                                    Oper09  : INT := 0;             // Remote instruction 09
+                                                    Oper10  : INT := 0;             // Remote instruction 10
+                                                    Oper11  : INT := 0;             // Remote instruction 11
+                                                    Oper12  : INT := 0;             // Remote instruction 12
+                                                    Oper13  : INT := 0;             // Remote instruction 13
+                                                    Oper14  : INT := 0;             // Remote instruction 14
+                                                    Oper15  : INT := 0;             // Remote instruction 15
+                                                    Oper16  : INT := 0;             // Remote instruction 16
+                                                    Oper17  : INT := 0;             // Remote instruction 17
+                                                    Oper18  : INT := 0;             // Remote instruction 18
+                                                    Oper19  : INT := 0;             // Remote instruction 19
+                                                    Oper20  : INT := 0;             // Remote instruction 20
+                                                    Oper21  : INT := 0;             // Remote instruction 21
+                                                    Oper22  : INT := 0;             // Remote instruction 22
+                                                    Oper23  : INT := 0;             // Remote instruction 23
+                                                    Oper24  : INT := 0;             // Remote instruction 24
+                                                    Oper25  : INT := 0;             // Remote instruction 25
+                                                    Oper26  : INT := 0;             // Remote instruction 26
+                                                    Oper27  : INT := 0;             // Remote instruction 27
+                                                    Oper28  : INT := 0;             // Remote instruction 28
+                                                    Oper29  : INT := 0;             // Remote instruction 29
+                                                    Oper30  : INT := 0;             // Remote instruction 30
+                                                    Oper31  : INT := 0;             // Remote instruction 31
+                                                    Oper32  : INT := 0;             // Remote instruction 32
+                                                    Oper33  : INT := 0;             // Remote instruction 33
+                                                    Oper34  : INT := 0;             // Remote instruction 34
+                                                    Oper35  : INT := 0;             // Remote instruction 35
+                                                    Oper36  : INT := 0;             // Remote instruction 36
+                                                    Oper37  : INT := 0;             // Remote instruction 37
+                                                    Oper38  : INT := 0;             // Remote instruction 38
+                                                    Oper39  : INT := 0;             // Remote instruction 39
+                                                    Oper40  : INT := 0;             // Remote instruction 40
+                                                    Oper41  : INT := 0;             // Remote instruction 41
+                                                    Oper42  : INT := 0;             // Remote instruction 42
+                                                    Oper43  : INT := 0;             // Remote instruction 43
+                                                    Oper44  : INT := 0;             // Remote instruction 44
+                                                    Oper45  : INT := 0;             // Remote instruction 45
+                                                    Oper46  : INT := 0;             // Remote instruction 46
+                                                    Oper47  : INT := 0;             // Remote instruction 47
+                                                    Oper48  : INT := 0;             // Remote instruction 48
+                                                    Oper49  : INT := 0;             // Remote instruction 49
+                                                    Oper50  : INT := 0;             // Remote instruction 50
+                                                    Oper51  : INT := 0;             // Remote instruction 51
+                                                    Oper52  : INT := 0;             // Remote instruction 52
+                                                    Oper53  : INT := 0;             // Remote instruction 53
+                                                    Oper54  : INT := 0;             // Remote instruction 54
+                                                    Oper55  : INT := 0;             // Remote instruction 55
+                                                    Oper56  : INT := 0;             // Remote instruction 56
+                                                    Oper57  : INT := 0;             // Remote instruction 57
+                                                    Oper58  : INT := 0;             // Remote instruction 58
+                                                    Oper59  : INT := 0;             // Remote instruction 59
+                                                    Oper60  : INT := 0;             // Remote instruction 60
+                                                    Oper61  : INT := 0;             // Remote instruction 61
+                                                    Oper62  : INT := 0;             // Remote instruction 62
+                                                    Oper63  : INT := 0;             // Remote instruction 63
+                                                    Oper64  : INT := 0;             // Remote instruction 64
+                                                END_STRUCT;                         // Instructions set for remote block
+    ErrorNum    { S7_dynamic := 'true';
+                  S7_visible := 'true' }        : INT;                              // Error number
+                                                                                    // 0: No error
+                                                                                    // 1: Stack depleted, insufficient operands
+                                                                                    // 2: Stack overfilled, no room for operand
+                                                                                    // 3: Division by zero, result will be zeroed
+                                                                                    // 4: Illegal value for selected operation, result will be zeroed
+                                                                                    // 5: Calculation is finished, but the stack is not empty
+                                                                                    // 6: Unknown operation code, exiting
+                                                                                    // 7: Calculation disabled, immediate exit
+END_VAR
+
+// --------------------------------------------------------------------------------------------------------------------
+
+VAR_TEMP
+    tiStackPtr                                  : INT;                              // Указатель на текущую ячейку стека
+    tiStackPtrMax                               : INT;                              // Максимально достигнутая глубина стека
+    tiOperPtr                                   : INT;                              // Указатель на текущую операцию
+    taStack                                     : ARRAY[0..MaxQueue] OF STRUCT
+                                                    Value   : REAL;                 // Value
+                                                    ST      : BYTE;                 // Signal status
+                                                END_STRUCT;                         // Содержимое стека значений
+    taOpers                                     : ARRAY[1..MaxQueue] OF INT;        // Массив операций
+    taValue                                     : ARRAY[1..32] OF STRUCT
+                                                    Value   : REAL;                 // Value
+                                                    ST      : BYTE;                 // Signal status
+                                                END_STRUCT;                         // Массив входных значений
+    tiErrorNum                                  : INT;                              // Код ошибки при возврате
+    trTemporal                                  : STRUCT
+                                                    Value   : REAL;                 // Value
+                                                    ST      : BYTE;                 // Signal status
+                                                END_STRUCT;                         // Временная переменная для разных нужд
+    taMem                                       : ARRAY[0..MaxMem-1] OF STRUCT
+                                                    Value   : REAL;                 // Value
+                                                    ST      : BYTE;                 // Signal status
+                                                END_STRUCT;                         // Массив ячеек временной памяти
+    tSelST                                      : STRUCT                            // Структура статусов для SelST16
+                                                    b0  : BYTE;
+                                                    b1  : BYTE;
+                                                    b2  : BYTE;
+                                                    b3  : BYTE;
+                                                    b4  : BYTE;
+                                                    b5  : BYTE;
+                                                    b6  : BYTE;
+                                                    b7  : BYTE;
+                                                    b8  : BYTE;
+                                                    b9  : BYTE;
+                                                    b10 : BYTE;
+                                                    b11 : BYTE;
+                                                    b12 : BYTE;
+                                                    b13 : BYTE;
+                                                    b14 : BYTE;
+                                                    b15 : BYTE;
+                                                END_STRUCT;
+END_VAR
+
+// --------------------------------------------------------------------------------------------------------------------
+
+BEGIN
+
+    tiStackPtr := 0;                                                                            // Устанавливаем указатель стека на начало
+    tiErrorNum := 0;                                                                            // Пока ошибок нет
+
+    taStack[0].Value := 0.0;
+    taStack[0].ST    := 16#FF;
+
+    IF NOT CalcEn.Value THEN                                                                    // Если вычисления запрещены
+        Result := taStack[0];                                                                   // Возвращаем на выход 0
+        ErrorNum := 7;                                                                          // Устанавливаем код ошибки
+        RETURN;                                                                                 // Завершаем работу блока
+    END_IF;
+
+    IF NOT OpLocRem.Value THEN                                                                  // Если выбран локальный набор операций -
+        taOpers[1]      := Oper01;                                                              // переносим все локальные операции в массив
+        taOpers[2]  := Oper02;
+        taOpers[3]  := Oper03;
+        taOpers[4]  := Oper04;
+        taOpers[5]  := Oper05;
+        taOpers[6]  := Oper06;
+        taOpers[7]  := Oper07;
+        taOpers[8]  := Oper08;
+        taOpers[9]  := Oper09;
+        taOpers[10] := Oper10;
+        taOpers[11] := Oper11;
+        taOpers[12] := Oper12;
+        taOpers[13] := Oper13;
+        taOpers[14] := Oper14;
+        taOpers[15] := Oper15;
+        taOpers[16] := Oper16;
+        taOpers[17] := Oper17;
+        taOpers[18] := Oper18;
+        taOpers[19] := Oper19;
+        taOpers[20] := Oper20;
+        taOpers[21] := Oper21;
+        taOpers[22] := Oper22;
+        taOpers[23] := Oper23;
+        taOpers[24] := Oper24;
+        taOpers[25] := Oper25;
+        taOpers[26] := Oper26;
+        taOpers[27] := Oper27;
+        taOpers[28] := Oper28;
+        taOpers[29] := Oper29;
+        taOpers[30] := Oper30;
+        taOpers[31] := Oper31;
+        taOpers[32] := Oper32;
+        taOpers[33] := Oper33;
+        taOpers[34] := Oper34;
+        taOpers[35] := Oper35;
+        taOpers[36] := Oper36;
+        taOpers[37] := Oper37;
+        taOpers[38] := Oper38;
+        taOpers[39] := Oper39;
+        taOpers[40] := Oper40;
+        taOpers[41] := Oper41;
+        taOpers[42] := Oper42;
+        taOpers[43] := Oper43;
+        taOpers[44] := Oper44;
+        taOpers[45] := Oper45;
+        taOpers[46] := Oper46;
+        taOpers[47] := Oper47;
+        taOpers[48] := Oper48;
+        taOpers[49] := Oper49;
+        taOpers[50] := Oper50;
+        taOpers[51] := Oper51;
+        taOpers[52] := Oper52;
+        taOpers[53] := Oper53;
+        taOpers[54] := Oper54;
+        taOpers[55] := Oper55;
+        taOpers[56] := Oper56;
+        taOpers[57] := Oper57;
+        taOpers[58] := Oper58;
+        taOpers[59] := Oper59;
+        taOpers[60] := Oper60;
+        taOpers[61] := Oper61;
+        taOpers[62] := Oper62;
+        taOpers[63] := Oper63;
+        taOpers[64] := Oper64;
+    ELSE
+        taOpers[1]  := OpRemLi.Oper01;                                                                  // иначе переносим все внешние операции в массив
+        taOpers[2]  := OpRemLi.Oper02;
+        taOpers[3]  := OpRemLi.Oper03;
+        taOpers[4]  := OpRemLi.Oper04;
+        taOpers[5]  := OpRemLi.Oper05;
+        taOpers[6]  := OpRemLi.Oper06;
+        taOpers[7]  := OpRemLi.Oper07;
+        taOpers[8]  := OpRemLi.Oper08;
+        taOpers[9]  := OpRemLi.Oper09;
+        taOpers[10] := OpRemLi.Oper10;
+        taOpers[11] := OpRemLi.Oper11;
+        taOpers[12] := OpRemLi.Oper12;
+        taOpers[13] := OpRemLi.Oper13;
+        taOpers[14] := OpRemLi.Oper14;
+        taOpers[15] := OpRemLi.Oper15;
+        taOpers[16] := OpRemLi.Oper16;
+        taOpers[17] := OpRemLi.Oper17;
+        taOpers[18] := OpRemLi.Oper18;
+        taOpers[19] := OpRemLi.Oper19;
+        taOpers[20] := OpRemLi.Oper20;
+        taOpers[21] := OpRemLi.Oper21;
+        taOpers[22] := OpRemLi.Oper22;
+        taOpers[23] := OpRemLi.Oper23;
+        taOpers[24] := OpRemLi.Oper24;
+        taOpers[25] := OpRemLi.Oper25;
+        taOpers[26] := OpRemLi.Oper26;
+        taOpers[27] := OpRemLi.Oper27;
+        taOpers[28] := OpRemLi.Oper28;
+        taOpers[29] := OpRemLi.Oper29;
+        taOpers[30] := OpRemLi.Oper30;
+        taOpers[31] := OpRemLi.Oper31;
+        taOpers[32] := OpRemLi.Oper32;
+        taOpers[33] := OpRemLi.Oper33;
+        taOpers[34] := OpRemLi.Oper34;
+        taOpers[35] := OpRemLi.Oper35;
+        taOpers[36] := OpRemLi.Oper36;
+        taOpers[37] := OpRemLi.Oper37;
+        taOpers[38] := OpRemLi.Oper38;
+        taOpers[39] := OpRemLi.Oper39;
+        taOpers[40] := OpRemLi.Oper40;
+        taOpers[41] := OpRemLi.Oper41;
+        taOpers[42] := OpRemLi.Oper42;
+        taOpers[43] := OpRemLi.Oper43;
+        taOpers[44] := OpRemLi.Oper44;
+        taOpers[45] := OpRemLi.Oper45;
+        taOpers[46] := OpRemLi.Oper46;
+        taOpers[47] := OpRemLi.Oper47;
+        taOpers[48] := OpRemLi.Oper48;
+        taOpers[49] := OpRemLi.Oper49;
+        taOpers[50] := OpRemLi.Oper50;
+        taOpers[51] := OpRemLi.Oper51;
+        taOpers[52] := OpRemLi.Oper52;
+        taOpers[53] := OpRemLi.Oper53;
+        taOpers[54] := OpRemLi.Oper54;
+        taOpers[55] := OpRemLi.Oper55;
+        taOpers[56] := OpRemLi.Oper56;
+        taOpers[57] := OpRemLi.Oper57;
+        taOpers[58] := OpRemLi.Oper58;
+        taOpers[59] := OpRemLi.Oper59;
+        taOpers[60] := OpRemLi.Oper60;
+        taOpers[61] := OpRemLi.Oper61;
+        taOpers[62] := OpRemLi.Oper62;
+        taOpers[63] := OpRemLi.Oper63;
+        taOpers[64] := OpRemLi.Oper64;
+    END_IF;        
+
+    taValue[1]  := In01;
+    taValue[2]  := In02;
+    taValue[3]  := In03;
+    taValue[4]  := In04;
+    taValue[5]  := In05;
+    taValue[6]  := In06;
+    taValue[7]  := In07;
+    taValue[8]  := In08;
+    taValue[9]  := In09;
+    taValue[10] := In10;
+    taValue[11] := In11;
+    taValue[12] := In12;
+    taValue[13] := In13;
+    taValue[14] := In14;
+    taValue[15] := In15;
+    taValue[16] := In16;
+    taValue[17] := In17;
+    taValue[18] := In18;
+    taValue[19] := In19;
+    taValue[20] := In20;
+    taValue[21] := In21;
+    taValue[22] := In22;
+    taValue[23] := In23;
+    taValue[24] := In24;
+    taValue[25] := In25;
+    taValue[26] := In26;
+    taValue[27] := In27;
+    taValue[28] := In28;
+    taValue[29] := In29;
+    taValue[30] := In30;
+    taValue[31] := In31;
+    taValue[32] := In32;
+
+    FOR tiOperPtr := 1 TO MaxQueue DO                                                           // Выполняем операции последовательно с начала до конца
+        
+    CASE taOpers[tiOperPtr] OF
+        // 0   - Отсутствие операции, конец вычислений
+        0   : EXIT;
+
+        // 1   - Изменение знака
+        1   : taStack[tiStackPtr].Value := -taStack[tiStackPtr].Value;
+
+        // 2   - Сложение
+        2   : IF tiStackPtr < 2 THEN
+                tiErrorNum := 1;
+                EXIT;
+              END_IF;
+              tSelST.b0 := taStack[tiStackPtr - 1].ST;
+              tSelST.b1 := taStack[tiStackPtr].ST;
+              trTemporal.ST := SelST16(InST :=  tSelST, Num := 2, SelPrio := STPriority);
+              taStack[tiStackPtr - 1].Value := taStack[tiStackPtr - 1].Value + taStack[tiStackPtr].Value;
+              taStack[tiStackPtr - 1].ST    := trTemporal.ST;
+              taStack[tiStackPtr].Value := 0.0;
+              taStack[tiStackPtr].ST    := 16#FF;
+              tiStackPtr := tiStackPtr - 1;
+
+        // 3   - Вычитание
+        3   : IF tiStackPtr < 2 THEN
+                tiErrorNum := 1;
+                EXIT;
+              END_IF;
+              tSelST.b0 := taStack[tiStackPtr - 1].ST;
+              tSelST.b1 := taStack[tiStackPtr].ST;
+              trTemporal.ST := SelST16(InST :=  tSelST, Num := 2, SelPrio := STPriority);
+              taStack[tiStackPtr - 1].Value := taStack[tiStackPtr - 1].Value - taStack[tiStackPtr].Value;
+              taStack[tiStackPtr - 1].ST    := trTemporal.ST;
+              taStack[tiStackPtr].Value := 0.0;
+              taStack[tiStackPtr].ST    := 16#FF;
+              tiStackPtr := tiStackPtr - 1;
+
+        // 4   - Умножение
+        4   : IF tiStackPtr < 2 THEN
+                tiErrorNum := 1;
+                EXIT;
+              END_IF;
+              tSelST.b0 := taStack[tiStackPtr - 1].ST;
+              tSelST.b1 := taStack[tiStackPtr].ST;
+              trTemporal.ST := SelST16(InST :=  tSelST, Num := 2, SelPrio := STPriority);
+              taStack[tiStackPtr - 1].Value := taStack[tiStackPtr - 1].Value * taStack[tiStackPtr].Value;
+              taStack[tiStackPtr - 1].ST    := trTemporal.ST;
+              taStack[tiStackPtr].Value := 0.0;
+              taStack[tiStackPtr].ST    := 16#FF;
+              tiStackPtr := tiStackPtr - 1;
+
+        5   : IF taStack[tiStackPtr].Value = 0.0 THEN
+                tiErrorNum := 3;
+                EXIT;
+              END_IF;
+              IF tiStackPtr < 2 THEN
+                tiErrorNum := 1;
+                EXIT;
+              END_IF;
+              tSelST.b0 := taStack[tiStackPtr - 1].ST;
+              tSelST.b1 := taStack[tiStackPtr].ST;
+              trTemporal.ST := SelST16(InST :=  tSelST, Num := 2, SelPrio := STPriority);
+              taStack[tiStackPtr - 1].Value := taStack[tiStackPtr - 1].Value / taStack[tiStackPtr].Value;
+              taStack[tiStackPtr - 1].ST    := trTemporal.ST;
+              taStack[tiStackPtr].Value := 0.0;
+              taStack[tiStackPtr].ST    := 16#FF;
+              tiStackPtr := tiStackPtr - 1;
+
+        6   : IF taStack[tiStackPtr].Value = 0.0 THEN
+                tiErrorNum := 3;
+                EXIT;
+              END_IF;
+              IF tiStackPtr < 2 THEN
+                tiErrorNum := 1;
+                EXIT;
+              END_IF;
+              tSelST.b0 := taStack[tiStackPtr - 1].ST;
+              tSelST.b1 := taStack[tiStackPtr].ST;
+              trTemporal.ST := SelST16(InST :=  tSelST, Num := 2, SelPrio := STPriority);
+              taStack[tiStackPtr - 1].Value := DINT_TO_REAL(TRUNC(taStack[tiStackPtr - 1].Value / taStack[tiStackPtr].Value));
+              taStack[tiStackPtr - 1].ST    := trTemporal.ST;
+              taStack[tiStackPtr].Value := 0.0;
+              taStack[tiStackPtr].ST    := 16#FF;
+              tiStackPtr := tiStackPtr - 1;
+
+        7   : IF taStack[tiStackPtr].Value = 0.0 THEN
+                tiErrorNum := 3;
+                EXIT;
+              END_IF;
+              IF tiStackPtr < 2 THEN
+                tiErrorNum := 1;
+                EXIT;
+              END_IF;
+              tSelST.b0 := taStack[tiStackPtr - 1].ST;
+              tSelST.b1 := taStack[tiStackPtr].ST;
+              trTemporal.ST := SelST16(InST :=  tSelST, Num := 2, SelPrio := STPriority);
+              taStack[tiStackPtr - 1].Value := (REAL_TO_DINT(taStack[tiStackPtr - 1].Value)) MOD (REAL_TO_DINT(taStack[tiStackPtr].Value));
+              taStack[tiStackPtr - 1].ST    := trTemporal.ST;
+              taStack[tiStackPtr].Value := 0.0;
+              taStack[tiStackPtr].ST    := 16#FF;
+              tiStackPtr := tiStackPtr - 1;
+
+        8   : IF taStack[tiStackPtr].Value = 0.0 THEN
+                tiErrorNum := 3;
+                EXIT;
+              END_IF;
+              taStack[tiStackPtr].Value := 1.0 / taStack[tiStackPtr].Value;
+         
+        9   : taStack[tiStackPtr].Value := SQR(taStack[tiStackPtr].Value);
+        
+        10  : IF tiStackPtr < 2 THEN
+                tiErrorNum := 1;
+                EXIT;
+              END_IF;
+              tSelST.b0 := taStack[tiStackPtr - 1].ST;
+              tSelST.b1 := taStack[tiStackPtr].ST;
+              trTemporal.ST := SelST16(InST :=  tSelST, Num := 2, SelPrio := STPriority);
+              taStack[tiStackPtr - 1].Value := taStack[tiStackPtr - 1].Value ** taStack[tiStackPtr].Value;
+              taStack[tiStackPtr - 1].ST    := trTemporal.ST;
+              taStack[tiStackPtr].Value := 0.0;
+              taStack[tiStackPtr].ST    := 16#FF;
+              tiStackPtr := tiStackPtr - 1;
+              
+        11  : IF taStack[tiStackPtr].Value < 0.0 THEN
+                tiErrorNum := 4;
+                EXIT;
+              END_IF;
+              taStack[tiStackPtr].Value := SQRT(taStack[tiStackPtr].Value);
+
+        12  : taStack[tiStackPtr].Value := EXP(taStack[tiStackPtr].Value);
+        
+        13  : taStack[tiStackPtr].Value := EXPD(taStack[tiStackPtr].Value);
+
+        14  : IF taStack[tiStackPtr].Value < 0.0 THEN
+                tiErrorNum := 4;
+                EXIT;
+              END_IF;
+              taStack[tiStackPtr].Value := LN(taStack[tiStackPtr].Value);
+
+        15  : IF taStack[tiStackPtr].Value <= 0.0 THEN
+                tiErrorNum := 4;
+                EXIT;
+              END_IF;
+              taStack[tiStackPtr].Value := LOG(taStack[tiStackPtr].Value);
+              
+        16  : taStack[tiStackPtr].Value := SIN(taStack[tiStackPtr].Value);
+        
+        17  : taStack[tiStackPtr].Value := COS(taStack[tiStackPtr].Value);
+
+        18  : taStack[tiStackPtr].Value := TAN(taStack[tiStackPtr].Value);
+
+        19  : taStack[tiStackPtr].Value := taStack[tiStackPtr].Value / 57.2957795131;
+        
+        20  : taStack[tiStackPtr].Value := taStack[tiStackPtr].Value * 57.2957795131;
+
+        21  : IF tiStackPtr < 2 THEN
+                tiErrorNum := 1;
+                EXIT;
+              END_IF;
+              IF taStack[tiStackPtr - 1].Value > taStack[tiStackPtr].Value THEN
+                taStack[tiStackPtr - 1] := taStack[tiStackPtr];
+              END_IF;
+              taStack[tiStackPtr].Value := 0.0;
+              taStack[tiStackPtr].ST    := 16#FF;
+              tiStackPtr := tiStackPtr - 1;
+
+        22  : IF tiStackPtr < 2 THEN
+                tiErrorNum := 1;
+                EXIT;
+              END_IF;
+              IF taStack[tiStackPtr - 1].Value < taStack[tiStackPtr].Value THEN
+                taStack[tiStackPtr - 1] := taStack[tiStackPtr];
+              END_IF;
+              taStack[tiStackPtr].Value := 0.0;
+              taStack[tiStackPtr].ST    := 16#FF;
+              tiStackPtr := tiStackPtr - 1;
+
+        23  : IF tiStackPtr < 2 THEN
+                tiErrorNum := 1;
+                EXIT;
+              END_IF;
+              tSelST.b0 := taStack[tiStackPtr - 1].ST;
+              tSelST.b1 := taStack[tiStackPtr].ST;
+              trTemporal.ST := SelST16(InST :=  tSelST, Num := 2, SelPrio := STPriority);
+              taStack[tiStackPtr - 1].Value := (taStack[tiStackPtr - 1].Value + taStack[tiStackPtr].Value) / 2.0;
+              taStack[tiStackPtr].ST        := trTemporal.ST;
+              taStack[tiStackPtr].Value := 0.0;
+              taStack[tiStackPtr].ST    := 16#FF;
+              tiStackPtr := tiStackPtr - 1;
+              
+        101 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr].Value := 1.0;
+              taStack[tiStackPtr].ST := 16#80;
+
+        102 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr].Value := 1.41421356;
+              taStack[tiStackPtr].ST := 16#80;
+
+        103 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr].Value := 1.73205081;
+              taStack[tiStackPtr].ST := 16#80;
+
+        104 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr].Value := 2.71828183;
+              taStack[tiStackPtr].ST := 16#80;
+
+        105 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr].Value := 3.0;
+              taStack[tiStackPtr].ST := 16#80;
+
+        106 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr].Value := 3.14159265;
+              taStack[tiStackPtr].ST := 16#80;
+
+        107 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr].Value := 6.28318531;
+              taStack[tiStackPtr].ST := 16#80;
+
+        108 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr].Value := 10.0;
+              taStack[tiStackPtr].ST := 16#80;
+
+        109 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr].Value := 60.0;
+              taStack[tiStackPtr].ST := 16#80;
+
+        110 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr].Value := 100.0;
+              taStack[tiStackPtr].ST := 16#80;
+
+        111 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr].Value := 180.0;
+              taStack[tiStackPtr].ST := 16#80;
+
+        112 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr].Value := 360.0;
+              taStack[tiStackPtr].ST := 16#80;
+
+        113 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr].Value := 1000.0;
+              taStack[tiStackPtr].ST := 16#80;
+
+
+        114 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr].Value := 1440.0;
+              taStack[tiStackPtr].ST := 16#80;
+
+
+        115 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr].Value := 3600.0;
+              taStack[tiStackPtr].ST := 16#80;
+
+        116 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr].Value := 86400.0;
+              taStack[tiStackPtr].ST := 16#80;
+
+        117 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr].Value := 1000000.0;
+              taStack[tiStackPtr].ST := 16#80;
+
+        200 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              taStack[tiStackPtr + 1] := taStack[tiStackPtr];
+              tiStackPtr := tiStackPtr + 1;
+              
+        201 : IF tiStackPtr < 2 THEN
+                tiErrorNum := 1;
+                EXIT;
+              END_IF;
+              trTemporal := taStack[tiStackPtr - 1];
+              taStack[tiStackPtr - 1] := taStack[tiStackPtr];
+              taStack[tiStackPtr] := trTemporal;
+
+        202 : IF tiStackPtr < 1 THEN
+                tiErrorNum := 1;
+                EXIT;
+              END_IF;
+              taStack[tiStackPtr].Value := 0.0;
+              taStack[tiStackPtr].ST := 16#FF;
+              tiStackPtr := tiStackPtr - 1;
+
+        800..809 : taMem[taOpers[tiOperPtr] - 800] := taStack[tiStackPtr];
+
+        820..829 : IF tiStackPtr >= MaxQueue THEN
+                tiErrorNum := 2;
+                EXIT;
+              END_IF;
+              tiStackPtr := tiStackPtr + 1;
+              taStack[tiStackPtr] := taMem[taOpers[tiOperPtr] - 820];
+
+        850..859 : IF tiStackPtr < 1 THEN
+                       tiErrorNum := 1;
+                       EXIT;
+                   END_IF;
+                   taMem[taOpers[tiOperPtr] - 850] := taStack[tiStackPtr];
+                   taStack[tiStackPtr].Value := 0.0;
+                   taStack[tiStackPtr].ST    := 16#FF;
+                   tiStackPtr := tiStackPtr - 1;
+
+        870..879 : taStack[tiStackPtr] := taMem[taOpers[tiOperPtr] - 870];
+
+        901..932 : IF tiStackPtr >= MaxQueue THEN
+                       tiErrorNum := 2;
+                       EXIT;
+                   END_IF;
+                   tiStackPtr := tiStackPtr + 1;
+                   taStack[tiStackPtr] := taValue[taOpers[tiOperPtr] - 900];
+              
+        ELSE: tiErrorNum := 6;
+
+    END_CASE;
+      
+    END_FOR;
+
+    IF tiErrorNum = 3 OR tiErrorNum = 4 THEN
+        Result.Value := 0.0;
+        Result.ST    := 16#00;
+    ELSE
+        Result := taStack[tiStackPtr];
+    END_IF;
+
+    IF tiStackPtr > 1 AND tiErrorNum <> 6 THEN
+        tiErrorNum := 5;
+    END_IF;
+
+    Mem0 := taMem[0];
+    Mem1 := taMem[1];
+    Mem2 := taMem[2];
+    Mem3 := taMem[3];
+    Mem4 := taMem[4];
+    Mem5 := taMem[5];
+    Mem6 := taMem[6];
+    Mem7 := taMem[7];
+    Mem8 := taMem[8];
+    Mem9 := taMem[9];
+
+    // Выполняемые операции (заданные локально или полученные извне) - передаём следующему
+    OpRemOut.Oper01 := taOpers[1];
+    OpRemOut.Oper02 := taOpers[2];
+    OpRemOut.Oper03 := taOpers[3];
+    OpRemOut.Oper04 := taOpers[4];
+    OpRemOut.Oper05 := taOpers[5];
+    OpRemOut.Oper06 := taOpers[6];
+    OpRemOut.Oper07 := taOpers[7];
+    OpRemOut.Oper08 := taOpers[8];
+    OpRemOut.Oper09 := taOpers[9];
+    OpRemOut.Oper10 := taOpers[10];
+    OpRemOut.Oper11 := taOpers[11];
+    OpRemOut.Oper12 := taOpers[12];
+    OpRemOut.Oper13 := taOpers[13];
+    OpRemOut.Oper14 := taOpers[14];
+    OpRemOut.Oper15 := taOpers[15];
+    OpRemOut.Oper16 := taOpers[16];
+    OpRemOut.Oper17 := taOpers[17];
+    OpRemOut.Oper18 := taOpers[18];
+    OpRemOut.Oper19 := taOpers[19];
+    OpRemOut.Oper20 := taOpers[20];
+    OpRemOut.Oper21 := taOpers[21];
+    OpRemOut.Oper22 := taOpers[22];
+    OpRemOut.Oper23 := taOpers[23];
+    OpRemOut.Oper24 := taOpers[24];
+    OpRemOut.Oper25 := taOpers[25];
+    OpRemOut.Oper26 := taOpers[26];
+    OpRemOut.Oper27 := taOpers[27];
+    OpRemOut.Oper28 := taOpers[28];
+    OpRemOut.Oper29 := taOpers[29];
+    OpRemOut.Oper30 := taOpers[30];
+    OpRemOut.Oper31 := taOpers[31];
+    OpRemOut.Oper32 := taOpers[32];
+    OpRemOut.Oper33 := taOpers[33];
+    OpRemOut.Oper34 := taOpers[34];
+    OpRemOut.Oper35 := taOpers[35];
+    OpRemOut.Oper36 := taOpers[36];
+    OpRemOut.Oper37 := taOpers[37];
+    OpRemOut.Oper38 := taOpers[38];
+    OpRemOut.Oper39 := taOpers[39];
+    OpRemOut.Oper40 := taOpers[40];
+    OpRemOut.Oper41 := taOpers[41];
+    OpRemOut.Oper42 := taOpers[42];
+    OpRemOut.Oper43 := taOpers[43];
+    OpRemOut.Oper44 := taOpers[44];
+    OpRemOut.Oper45 := taOpers[45];
+    OpRemOut.Oper46 := taOpers[46];
+    OpRemOut.Oper47 := taOpers[47];
+    OpRemOut.Oper48 := taOpers[48];
+    OpRemOut.Oper49 := taOpers[49];
+    OpRemOut.Oper50 := taOpers[50];
+    OpRemOut.Oper51 := taOpers[51];
+    OpRemOut.Oper52 := taOpers[52];
+    OpRemOut.Oper53 := taOpers[53];
+    OpRemOut.Oper54 := taOpers[54];
+    OpRemOut.Oper55 := taOpers[55];
+    OpRemOut.Oper56 := taOpers[56];
+    OpRemOut.Oper57 := taOpers[57];
+    OpRemOut.Oper58 := taOpers[58];
+    OpRemOut.Oper59 := taOpers[59];
+    OpRemOut.Oper60 := taOpers[60];
+    OpRemOut.Oper61 := taOpers[61];
+    OpRemOut.Oper62 := taOpers[62];
+    OpRemOut.Oper63 := taOpers[63];
+    OpRemOut.Oper64 := taOpers[64];
+
+    // Сформированную ошибку выдаём наружу
+    ErrorNum := tiErrorNum;
+
+END_FUNCTION

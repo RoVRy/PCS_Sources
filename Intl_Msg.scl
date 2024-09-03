@@ -1,0 +1,175 @@
+FUNCTION_BLOCK Intl_Msg { S7_alarm_ui := '1';
+                          S7_m_c := 'true' }
+// Блок для генерации сообщений для блоков интерлоков
+TITLE = 'Messages generation block for Intlk02..16'
+VERSION: '0.6'
+AUTHOR: RoVRy
+NAME: Intl_Msg
+FAMILY: Report
+
+KNOW_HOW_PROTECT
+
+VAR_INPUT
+
+    Status4 { S7_visible := 'true';
+              S7_dynamic := 'true' }                : DWORD;                        //Status4 from IntlkXX linkable input
+
+    Status5 { S7_visible := 'true';
+              S7_dynamic := 'true' }                : DWORD;                        //Status5 from IntlkXX linkable input
+
+    Status6 { S7_visible := 'true';
+              S7_dynamic := 'true' }                : DWORD;                        //Status6 from IntlkXX linkable input
+
+    BlkType { S7_visible := 'true';
+              S7_param := 'true';
+              S7_dynamic := 'true';
+              S7_string_0 := 'Intlk02';
+              S7_string_1 := 'Intlk04';
+              S7_string_2 := 'Intlk08';
+              S7_string_3 := 'Intlk16' }            : INT;                          //Type of linked block
+
+    ExtVal01 { S7_visible := 'false' }              : ANY;                          //External value for In01
+    ExtVal02 { S7_visible := 'false' }              : ANY;                          //External value for In02
+    ExtVal03 { S7_visible := 'false' }              : ANY;                          //External value for In03
+    ExtVal04 { S7_visible := 'false' }              : ANY;                          //External value for In04
+    ExtVal05 { S7_visible := 'false' }              : ANY;                          //External value for In05
+    ExtVal06 { S7_visible := 'false' }              : ANY;                          //External value for In06
+    ExtVal07 { S7_visible := 'false' }              : ANY;                          //External value for In07
+    ExtVal08 { S7_visible := 'false' }              : ANY;                          //External value for In08
+    ExtVal09 { S7_visible := 'false' }              : ANY;                          //External value for In09
+    ExtVal10 { S7_visible := 'false' }              : ANY;                          //External value for In10
+    ExtVal11 { S7_visible := 'false' }              : ANY;                          //External value for In11
+    ExtVal12 { S7_visible := 'false' }              : ANY;                          //External value for In12
+    ExtVal13 { S7_visible := 'false' }              : ANY;                          //External value for In13
+    ExtVal14 { S7_visible := 'false' }              : ANY;                          //External value for In14
+    ExtVal15 { S7_visible := 'false' }              : ANY;                          //External value for In15
+    ExtVal16 { S7_visible := 'false' }              : ANY;                          //External value for In16
+
+    MsgLock { S7_visible := 'false' }               : STRUCT
+        Value   : BOOL := FALSE;                                                    //Value
+        ST      : BYTE := 16#FF;                                                    //Signal status
+    END_STRUCT;                                                                     //Block all messages
+
+    MsgEvId1 { S7_visible := 'false';
+               S7_link := 'false';
+               S7_param := 'false';
+               S7_server := 'alarm_archiv';
+               S7_a_type := 'alarm_8p' }            : DWORD := 16#00000000;         //Message Event ID
+
+    MsgEvId2 { S7_visible := 'false';
+               S7_link := 'false';
+               S7_param := 'false';
+               S7_server := 'alarm_archiv';
+               S7_a_type := 'alarm_8p' }            : DWORD := 16#00000000;         //Message Event ID
+
+END_VAR
+
+VAR_OUTPUT
+
+    EventTsOut { S7_visible := 'false' }            : STRUCT
+        InValAct    : WORD;                                                         //Active signals with inversions
+        Mode        : WORD;                                                         //Mode bits
+        BatchID     : DWORD;                                                        //Current Batch ID (number)
+        anySarBatchNames    : STRUCT
+            S7          : BYTE;                                                     //Pointer
+            DataType    : BYTE;                                                     //Any pointer
+            Repetition  : WORD;                                                     //Any pointer
+            DBNumber    : WORD;                                                     //Any pointer
+            Address     : DWORD;                                                    //Any pointer
+        END_STRUCT;
+        StepNo      : DWORD;                                                        //Batch Step Number
+    END_STRUCT;                                                                     //Timestamp
+
+    MsgErr1 { S7_visible := 'false' }               : BOOL;                         //1 = Message error occurs
+    MsgStat1 { S7_visible := 'false' }              : WORD;                         //ALARM_8P status output
+    MsgAck1 { S7_visible := 'false' }               : WORD;                         //ALARM_8P ACK_STATE output
+
+    MsgErr2 { S7_visible := 'false' }               : BOOL;                         //1 = Message error occurs
+    MsgStat2 { S7_visible := 'false' }              : WORD;                         //ALARM_8P status output
+    MsgAck2 { S7_visible := 'false' }               : WORD;                         //ALARM_8P ACK_STATE output
+
+END_VAR
+
+VAR
+    ALARM_1_8   : ALARM_8P;
+    ALARM_8_16  : ALARM_8P;
+END_VAR
+
+VAR_TEMP
+    
+    tdwInMask               : DWORD;
+    tawIn AT tdwInMask      : ARRAY[0..1] OF WORD;
+    taxIn AT tdwInMask      : ARRAY[0..31] OF BOOL;
+    tdwBlkEnMask            : DWORD;
+    
+END_VAR
+
+BEGIN
+
+    CASE BlkType OF
+        0 :                                         //Intlk02
+            tdwBlkEnMask := 16#00000003;
+        1 :                                         //Intlk04
+            tdwBlkEnMask := 16#0000000F;
+        2 :                                         //Intlk08
+            tdwBlkEnMask := 16#000000FF;
+        3 :                                         //Intlk16
+            tdwBlkEnMask := 16#0000FFFF;
+    ELSE:                                           //Something wrong
+            tdwBlkEnMask := 16#00000000;
+    END_CASE;
+
+    tdwInMask := ((NOT Status4) AND (NOT Status5) AND (NOT Status6)) AND tdwBlkEnMask;
+    EventTsOut.InValAct := tawIn[1];
+    
+    IF MsgLock.Value THEN
+        tdwInMask := 16#00000000;
+    END_IF;
+    
+    ALARM_1_8(EN_R   := MsgLock.Value,
+              ID     := W#16#EEEE,
+              EV_ID  := MsgEvId1,
+              SIG_1  := taxIn[24],
+              SIG_2  := taxIn[25],
+              SIG_3  := taxIn[26],
+              SIG_4  := taxIn[27],
+              SIG_5  := taxIn[28],
+              SIG_6  := taxIn[29],
+              SIG_7  := taxIn[30],
+              SIG_8  := taxIn[31],
+              SD_1   := ExtVal01,
+              SD_2   := ExtVal02,
+              SD_3   := ExtVal03,
+              SD_4   := ExtVal04,
+              SD_5   := ExtVal05,
+              SD_6   := ExtVal06,
+              SD_7   := ExtVal07,
+              SD_8   := ExtVal08);
+    MsgErr1 := ALARM_1_8.ERROR;
+    MsgStat1 := ALARM_1_8.STATUS;
+    MsgAck1 := ALARM_1_8.ACK_STATE;
+
+    ALARM_8_16(EN_R   := MsgLock.Value,
+               ID     := W#16#EEEE,
+               EV_ID  := MsgEvId2,
+               SIG_1  := taxIn[16],
+               SIG_2  := taxIn[17],
+               SIG_3  := taxIn[18],
+               SIG_4  := taxIn[19],
+               SIG_5  := taxIn[20],
+               SIG_6  := taxIn[21],
+               SIG_7  := taxIn[22],
+               SIG_8  := taxIn[23],
+               SD_1   := ExtVal09,
+               SD_2   := ExtVal10,
+               SD_3   := ExtVal11,
+               SD_4   := ExtVal12,
+               SD_5   := ExtVal13,
+               SD_6   := ExtVal14,
+               SD_7   := ExtVal15,
+               SD_8   := ExtVal16);
+    MsgErr2 := ALARM_8_16.ERROR;
+    MsgStat2 := ALARM_8_16.STATUS;
+    MsgAck2 := ALARM_8_16.ACK_STATE;
+
+END_FUNCTION_BLOCK
