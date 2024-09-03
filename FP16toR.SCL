@@ -1,6 +1,6 @@
-FUNCTION FP16toR : VOID
+FUNCTION FC76 : VOID
 TITLE = 'Convert FP16 format to standard REAL'
-VERSION: '0.7'
+VERSION: '0.9'
 AUTHOR: RoVRy
 NAME: FP16toR
 FAMILY: CONVERT
@@ -20,30 +20,32 @@ VAR_OUTPUT
 END_VAR
 
 VAR_TEMP
+
     twIn                : WORD;
     taIn AT twIn        : ARRAY[0..15] OF BOOL;
-    taOut               : ARRAY[0..31] OF BOOL;
-    trOut AT taOut      : REAL;
-    tbExp               : BYTE;
-    taExp AT tbExp      : ARRAY[0..7] OF BOOL;
+
+    tdwOut              : DWORD;
+    trOut AT tdwOut     : REAL;
+    taOut AT tdwOut     : ARRAY[0..31] OF BOOL;
+
     tiExp               : INT;
+    taExp AT tiExp      : ARRAY[0..15] OF BOOL;
+
 END_VAR
 
 BEGIN
-    trOut := 0.0;
-    tbExp := B#16#00;
+
+    tdwOut := 16#0000_0000;
+    tiExp  := 0;
 
     twIn := In;
 
-    // Copy the sign bit (the most left)
-    taOut[7]  := taIn[7];
-
     // Copy exponent bits
-    taExp[4] := taIn[6];
-    taExp[3] := taIn[5];
-    taExp[2] := taIn[4];
-    taExp[1] := taIn[3];
-    taExp[0] := taIn[2];
+    taExp[12] := taIn[6];
+    taExp[11] := taIn[5];
+    taExp[10] := taIn[4];
+    taExp[9]  := taIn[3];
+    taExp[8]  := taIn[2];
 
     // Copy mantissa bits
     taOut[14] := taIn[1];
@@ -51,46 +53,44 @@ BEGIN
     taOut[12] := taIn[15];
     taOut[11] := taIn[14];
     taOut[10] := taIn[13];
-    taOut[9] := taIn[12];
-    taOut[8] := taIn[11];
+    taOut[9]  := taIn[12];
+    taOut[8]  := taIn[11];
     taOut[23] := taIn[10];
     taOut[22] := taIn[9];
     taOut[21] := taIn[8];
-    taOut[20] := FALSE;
-    taOut[19] := FALSE;
-    taOut[18] := FALSE;
-    taOut[17] := FALSE;
-    taOut[16] := FALSE;
-    taOut[31] := FALSE;
-    taOut[30] := FALSE;
-    taOut[29] := FALSE;
-    taOut[28] := FALSE;
-    taOut[27] := FALSE;
-    taOut[26] := FALSE;
-    taOut[25] := FALSE;
-    taOut[24] := FALSE;
 
     // Converting 5-bit exponent format to 8-bit exp.fmt
-    tiExp := BYTE_TO_INT(tbExp) + 112;
+    tiExp := tiExp + 112;
 
     IF tiExp = 143 THEN
         tiExp := 255;
+        tdwOut := 16#0000_0000;
     END_IF;
+    
     IF tiExp = 112 THEN
-        tiExp := 0;
+        IF tdwOut <> 16#0000_0000 THEN
+            tiExp := tiExp + 1;
+            WHILE taOut[15] = 0 DO
+                tdwOut := SHL(IN := tdwOut, N := 1);
+                tiExp := tiExp - 1;
+            END_WHILE;
+        ELSE
+            tiExp := 0;
+            tdwOut := 16#0000_0000;
+        END_IF;
     END_IF;
 
-    tbExp := INT_TO_BYTE(tiExp);
-
+    // Copy the sign bit (the most left)
+    taOut[7]  := taIn[7];
     // Copy exponent bits to out
-    taOut[6]  := taExp[7];
-    taOut[5]  := taExp[6];
-    taOut[4]  := taExp[5];
-    taOut[3]  := taExp[4];
-    taOut[2]  := taExp[3];
-    taOut[1]  := taExp[2];
-    taOut[0]  := taExp[1];
-    taOut[15] := taExp[0];
+    taOut[6]  := taExp[15];
+    taOut[5]  := taExp[14];
+    taOut[4]  := taExp[13];
+    taOut[3]  := taExp[12];
+    taOut[2]  := taExp[11];
+    taOut[1]  := taExp[10];
+    taOut[0]  := taExp[9];
+    taOut[15] := taExp[8];
 
     Out.Value := trOut;
     
