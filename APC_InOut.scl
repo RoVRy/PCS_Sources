@@ -1,20 +1,26 @@
-FUNCTION_BLOCK APC_InOut
-    { S7_m_c := 'true' }
-    TITLE = 'Signals exchange with Honeywell APC'
-    VERSION: '0.13'
-    AUTHOR: RoVRy
+FUNCTION_BLOCK APC_InOut { S7_m_c := 'true';
+                           S7_read_back := 'true' }
+
+    TITLE = 'Signals exchange with APC system'
+    VERSION: '1.8'
     NAME: APC_InOut
-    FAMILY: AdvLibRR
+    FAMILY: APC
+    AUTHOR: AdvLibRR
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 VAR_INPUT
 
     APC_Op      { S7_visible := 'true';
-                  S7_m_c := 'true' }        : BOOL := FALSE;                // Enable/Disable APC from HMI
+                  S7_m_c := 'true';
+                  Op_Level := '2' }         : BOOL := FALSE;            // Enable/Disable APC from HMI
 
     APC_Li      { S7_visible := 'true';
-                  S7_m_c := 'true' }        : INT := 0;                     // Enable/Disable APC from Honeywell: 0 = w/o change; 1 = Off; 2 = On;
+                  S7_m_c := 'true';
+                  S7_link := 'false';
+                  S7_string_0 := 'No cmd';
+                  S7_string_1 := 'Cmd OFF';
+                  S7_string_2 := 'Cmd ON' }        : INT := 0;                 // APC enabled/disabled from Honeywell: 0 = w/o change; 1 = Off; 2 = On;
 
     AutAct_In   { S7_visible := 'true';
                   S7_m_c := 'true';
@@ -22,13 +28,13 @@ VAR_INPUT
                   S7_xqc := 'Value,true;' } : STRUCT
         Value : BOOL := FALSE;
         ST : BYTE := B#16#FF;
-    END_STRUCT;                                                             // Interconnect from PID AutAct to APC
+    END_STRUCT;                                                         // Interconnect from PID AutAct to APC
 
     Reg_Mode    { S7_visible := 'true';
                   S7_m_c := 'true';
                   S7_link := 'false';
                   S7_string_0 := 'OPER';
-                  S7_string_1 := 'RMPC' }   : BOOL := FALSE;                // APC regulator mode
+                  S7_string_1 := 'RMPC' }   : BOOL := FALSE;            // APC regulator mode (Indication only)
 
     SP_ExtAct   { S7_visible := 'true';
                   S7_m_c := 'true';
@@ -36,10 +42,10 @@ VAR_INPUT
                   S7_xqc := 'Value,true;' } : STRUCT
         Value : BOOL := FALSE;
         ST : BYTE := B#16#FF;
-    END_STRUCT;                                                             // Interconnect from PID SP_ExtAct to APC
+    END_STRUCT;                                                         // Interconnect from PID SP_ExtAct to APC
 
     SP_Int      { S7_visible := 'true';
-                  S7_m_c := 'true' }        : REAL := 0.0;                  // Interconnect from PID SP_IntOut
+                  S7_m_c := 'true' }        : REAL := 0.0;              // Interconnect from PID SP_IntOut
     
     SP_Ext      { S7_visible := 'true';
                   S7_m_c := 'true';
@@ -47,17 +53,19 @@ VAR_INPUT
                   S7_xqc := 'Value,true;' } : STRUCT
         Value : REAL := 0.0;
         ST : BYTE := B#16#FF;
-    END_STRUCT;                                                             // Interconnect SP from external logic
+    END_STRUCT;                                                         // Interconnect SP from external logic
         
     SP_APC      { S7_visible := 'true';
                   S7_m_c := 'true';
-                  S7_link := 'false' }      : REAL := 0.0;                  // SP tag from APC
+                  S7_link := 'false' }      : REAL := 0.0;              // SP tag from APC
 
     SP_LoLim    { S7_visible := 'true';
-                  S7_m_c := 'true' }        : REAL := 0.0;                  // SP low limit from operator to APC
+                  S7_m_c := 'true';
+                  Op_Level := '2' }         : REAL := 0.0;              // SP low limit from operator to APC
 
     SP_HiLim    { S7_visible := 'true';
-                  S7_m_c := 'true' }        : REAL := 0.0;                  // SP high limit from operator to APC
+                  S7_m_c := 'true';
+                  Op_Level := '2' }         : REAL := 100.0;            // SP high limit from operator to APC
 
     MV_In       { S7_visible := 'true';
                   S7_m_c := 'true';
@@ -65,7 +73,11 @@ VAR_INPUT
                   S7_xqc := 'Value,true;' } : STRUCT
         Value : REAL := 0.0;
         ST : BYTE := B#16#FF;
-    END_STRUCT;                                                             // Interconnect MV from PID
+    END_STRUCT;                                                         // Interconnect MV from PID
+
+    Unit        { S7_m_c := 'true';
+                  S7_visible := 'true';
+                  S7_unit := '' }           : INT := 1001;              // Control loop unit
 
     Watchdog    { S7_visible := 'true';
                   S7_m_c := 'true';
@@ -73,7 +85,49 @@ VAR_INPUT
                   S7_xqc := 'Value,true;' } : STRUCT
         Value : BOOL := FALSE;
         ST : BYTE := B#16#FF;
-    END_STRUCT;                                                             // APS watchdog input, 1 = Connection OK
+    END_STRUCT;                                                         // APC watchdog input, 1 = Connection OK
+
+    OS_Perm     { S7_visible := 'false' }   : STRUCT
+        Bit0    : BOOL := TRUE;                                         // 1 = Operator can enable APC loop
+        Bit1    : BOOL := TRUE;                                         // 1 = Operator can change SP low limit
+        Bit2    : BOOL := TRUE;                                         // 1 = Operator can change SP high limit
+        Bit3    : BOOL := TRUE;                                         // Not used
+        Bit4    : BOOL := TRUE;                                         // Not used
+        Bit5    : BOOL := TRUE;                                         // Not used
+        Bit6    : BOOL := TRUE;                                         // Not used
+        Bit7    : BOOL := TRUE;                                         // Not used
+        Bit8    : BOOL := TRUE;                                         // Not used
+        Bit9    : BOOL := TRUE;                                         // Not used
+        Bit10   : BOOL := TRUE;                                         // Not used
+        Bit11   : BOOL := TRUE;                                         // Not used
+        Bit12   : BOOL := TRUE;                                         // Not used
+        Bit13   : BOOL := TRUE;                                         // Not used
+        Bit14   : BOOL := TRUE;                                         // Not used
+        Bit15   : BOOL := TRUE;                                         // Not used
+        Bit16   : BOOL := TRUE;                                         // Not used
+        Bit17   : BOOL := TRUE;                                         // Not used
+        Bit18   : BOOL := TRUE;                                         // Not used
+        Bit19   : BOOL := TRUE;                                         // Not used
+        Bit20   : BOOL := TRUE;                                         // Not used
+        Bit21   : BOOL := TRUE;                                         // Not used
+        Bit22   : BOOL := TRUE;                                         // Not used
+        Bit23   : BOOL := TRUE;                                         // Not used
+        Bit24   : BOOL := TRUE;                                         // Not used
+        Bit25   : BOOL := TRUE;                                         // Not used
+        Bit26   : BOOL := TRUE;                                         // Not used
+        Bit27   : BOOL := TRUE;                                         // Not used
+        Bit28   : BOOL := TRUE;                                         // Not used
+        Bit29   : BOOL := TRUE;                                         // Not used
+        Bit30   : BOOL := TRUE;                                         // Not used
+        Bit31   : BOOL := TRUE;                                         // Not used
+    END_STRUCT;                                                         // Operator Permissions
+    abOS_Perm AT OS_Perm                    : ARRAY[0..3] OF BYTE;      // Byte view at OS_Perm
+
+    SelFp1      { BLK_Jump := '1';
+                  S7_visible := 'false' }   : ANY;                      // Select Faceplate 1
+
+    SelFp2      { BLK_Jump := '1';
+                  S7_visible := 'false' }   : ANY;                      // Select Faceplate 2
     
 END_VAR
 
@@ -82,32 +136,46 @@ END_VAR
 VAR_OUTPUT
     
     APC_Act     { S7_visible := 'true';
-                  S7_m_c := 'true' }            : BOOL := FALSE;            // APC is active
+                  S7_m_c := 'true';
+                  S7_string_0 := 'Not active';
+                  S7_string_1 := 'Active' }        : BOOL := FALSE;            // APC is active
 
-    SP_LiOp     { S7_visible := 'true' }        : BOOL := FALSE;            // SP_LiOp signal for PID block
+    SP_LiOp     { S7_visible := 'true' }    : BOOL := FALSE;            // SP_LiOp signal for PID block
 
-    SP_ExtLi    { S7_visible := 'true' }        : BOOL := FALSE;            // SP_ExtLi signal for PID block
+    SP_ExtLi    { S7_visible := 'true' }    : BOOL := FALSE;            // SP_ExtLi signal for PID block
 
-    SP_IntLi    { S7_visible := 'true' }        : BOOL := FALSE;            // SP_IntLi signal for PID block
+    SP_IntLi    { S7_visible := 'true' }    : BOOL := FALSE;            // SP_IntLi signal for PID block
 
     SP_ExtOut   { S7_visible := 'true';
                   S7_m_c := 'true';
                   S7_xm_c := 'Value,true;';
-                  S7_xqc := 'Value,true;' }     : STRUCT
-        Value : REAL := 0.0;
-        ST : BYTE := B#16#FF;
-    END_STRUCT;                                                             // External setpoint for PID block
+                  S7_xqc := 'Value,true;' } : STRUCT
+        Value   : REAL := 0.0;
+        ST      : BYTE := B#16#FF;
+    END_STRUCT;                                                         // External setpoint for PID block
 
     SP_Fut      { S7_visible := 'true';
-                  S7_m_c := 'true' }            : REAL := 0.0;              // Future value from APC
+                  S7_m_c := 'true' }        : REAL := 0.0;              // Future value from APC
 
-    MV_TrkOn    { S7_visible := 'true' }        : BOOL := FALSE;            // MV tracking on from APC
+    MV_TrkOn    { S7_visible := 'true' }    : BOOL := FALSE;            // MV tracking on from APC
 
     MV_Out      { S7_visible := 'true';
-                  S7_m_c := 'true' }            : REAL;                     // MV from APC or from PID
+                  S7_m_c := 'true' }        : REAL;                     // MV from APC or from PID
 
     MV_Step     { S7_visible := 'true';
-                  S7_m_c := 'true' }            : REAL;                     // APC MV current step
+                  S7_m_c := 'true' }        : REAL;                     // APC MV current step
+
+    OS_PermOut  { S7_visible := 'false';
+                  S7_m_c := 'true' }        : DWORD := 16#FFFFFFFF;     // Original operator permissions
+    abOS_PermOut AT OS_PermOut              : ARRAY[0..3] OF BYTE;      // View os OS_PermOut
+
+    OS_PermLog  { S7_visible := 'false';
+                  S7_m_c := 'true' }        : DWORD := 16#FFFFFFFF;     // Process manipulated operator permissions
+    abOS_PermLog AT OS_PermLog              : ARRAY[0..3] OF BYTE;      // View os OS_PermLog
+
+    Status1     { S7_visible := 'false';
+                  S7_m_c := 'true' }        : DWORD := 16#00000000;     // Status1
+    byteStatus1 AT Status1                  : ARRAY[0..3] OF BYTE;
 
 END_VAR
 
@@ -115,10 +183,54 @@ END_VAR
 
 VAR
 
-    sAPC_En     : BOOL := FALSE;
-    stAPC_En    : BOOL := FALSE;
+    sAPC_En                                 : BOOL := FALSE;
+    stAPC_En                                : BOOL := FALSE;
+    oldAPC_Op                               : BOOL := FALSE;
 
 END_VAR
+
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+VAR_TEMP
+
+    tStatus1                                : STRUCT
+        Bit0    : BOOL;                                                 // APC enabled
+        Bit1    : BOOL;                                                 // APC regulator mode
+        Bit2    : BOOL;                                                 // APC connection OK
+        Bit3    : BOOL;                                                 // APC is active
+        Bit4    : BOOL;                                                 // Not used
+        Bit5    : BOOL;                                                 // Not used
+        Bit6    : BOOL;                                                 // Not used
+        Bit7    : BOOL;                                                 // Not used
+        Bit8    : BOOL;                                                 // Not used
+        Bit9    : BOOL;                                                 // Not used
+        Bit10   : BOOL;                                                 // PID AutAct
+        Bit11   : BOOL;                                                 // PID SP_ExtAct
+        Bit12   : BOOL;                                                 // PID SP_LiOp
+        Bit13   : BOOL;                                                 // PID SP_ExtLi
+        Bit14   : BOOL;                                                 // PID SP_IntLi
+        Bit15   : BOOL;                                                 // PID MV_TrkOn
+        Bit16   : BOOL;                                                 // Not used
+        Bit17   : BOOL;                                                 // Not used
+        Bit18   : BOOL;                                                 // Not used
+        Bit19   : BOOL;                                                 // Not used
+        Bit20   : BOOL;                                                 // Not used
+        Bit21   : BOOL;                                                 // Not used
+        Bit22   : BOOL;                                                 // Not used
+        Bit23   : BOOL;                                                 // Not used
+        Bit24   : BOOL;                                                 // Not used
+        Bit25   : BOOL;                                                 // Not used
+        Bit26   : BOOL;                                                 // Not used
+        Bit27   : BOOL;                                                 // Not used
+        Bit28   : BOOL;                                                 // Not used
+        Bit29   : BOOL;                                                 // Not used
+        Bit30   : BOOL;                                                 // Not used
+        Bit31   : BOOL;                                                 // Not used
+    END_STRUCT;
+    tByteStatus1 AT tStatus1                : ARRAY[0..3] OF BYTE;
+    
+END_VAR
+
 
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -148,14 +260,14 @@ BEGIN
     END_IF;
 
 // APC enable front trigger        
-    IF sAPC_En AND NOT stAPC_En THEN
+    IF (sAPC_En AND NOT stAPC_En AND AutAct_In.Value) THEN
         SP_APC := SP_Int;
         SP_LiOp := TRUE;
         SP_ExtLi := TRUE;
     END_IF;
 
 // APC enabled (at least 2nd cycle)
-    IF sAPC_En AND stAPC_En THEN
+    IF (sAPC_En AND stAPC_En) THEN
         SP_ExtOut.Value := SP_APC;
         SP_ExtOut.ST := B#16#80;
         SP_LiOp := FALSE;
@@ -163,13 +275,14 @@ BEGIN
     END_IF;
 
 // APC disable front trigger        
-    IF NOT sAPC_En AND stAPC_En THEN
+    IF (NOT sAPC_En AND stAPC_En) THEN
         SP_LiOp := TRUE;
         SP_IntLi := TRUE;
+        APC_Li := 1;
     END_IF;
 
 // APC disabled (at least 2nd cycle)
-    IF NOT sAPC_En AND NOT stAPC_En THEN
+    IF (NOT sAPC_En AND NOT stAPC_En) THEN
         SP_ExtOut.Value := SP_Ext.Value;
         SP_ExtOut.ST := SP_Ext.ST;
         SP_LiOp := FALSE;
@@ -187,5 +300,37 @@ BEGIN
     END_IF;
 
     stAPC_En := sAPC_En;
+
+    tByteStatus1[0] := 16#00;
+    tByteStatus1[1] := 16#00;
+    tByteStatus1[2] := 16#00;
+    tByteStatus1[3] := 16#00;
+
+    tStatus1.Bit0  := NOT sAPC_En;
+    tStatus1.Bit1  := sAPC_En;
+    tStatus1.Bit2  := Reg_Mode;
+    tStatus1.Bit3  := Watchdog.Value;
+    tStatus1.Bit4  := APC_Act;
+    tStatus1.Bit10 := AutAct_In.Value;
+    tStatus1.Bit11 := SP_ExtAct.Value;
+    tStatus1.Bit12 := SP_LiOp;
+    tStatus1.Bit13 := SP_ExtLi;
+    tStatus1.Bit14 := SP_IntLi;
+    tStatus1.Bit15 := MV_TrkOn;
+
+    byteStatus1[0] := tByteStatus1[3];
+    byteStatus1[1] := tByteStatus1[2];
+    byteStatus1[2] := tByteStatus1[1];
+    byteStatus1[3] := tByteStatus1[0];
+    
+    abOS_PermOut[3] := abOS_Perm[0];
+    abOS_PermOut[2] := abOS_Perm[1];
+    abOS_PermOut[1] := abOS_Perm[2];
+    abOS_PermOut[0] := abOS_Perm[3];
+
+    abOS_PermLog[3] := abOS_Perm[0];
+    abOS_PermLog[2] := abOS_Perm[1];
+    abOS_PermLog[1] := abOS_Perm[2];
+    abOS_PermLog[0] := abOS_Perm[3];
 
 END_FUNCTION_BLOCK
